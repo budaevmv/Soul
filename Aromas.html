@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Soul Candles — Библиотека ароматов</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..500&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #FFFFFF; color: #1E1E1E; line-height: 1.5; font-weight: 300; }
+        h1, h2, h3, h4, .logo { font-family: 'Playfair Display', serif; font-weight: 400; letter-spacing: -0.01em; }
+        h2 { font-size: 2.8rem; margin-bottom: 1rem; color: #1E1E1E; line-height: 1.1; }
+        h2 span { font-family: 'Inter', sans-serif; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; color: #8C6E5A; display: block; margin-bottom: 0.5rem; font-weight: 400; }
+        .container { max-width: 1440px; margin: 0 auto; padding: 0 40px; }
+        
+        /* ===== ШАПКА ===== */
+        header { background: #FFFFFF; padding: 20px 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; position: relative; }
+        .logo { font-size: 1.8rem; font-weight: 500; color: #8C6E5A; text-decoration: none; letter-spacing: -0.5px; z-index: 1001; flex-shrink: 0; line-height: 1; }
+        .logo span { font-weight: 300; color: #1E1E1E; }
+        .nav-desktop { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .nav-desktop ul { display: flex; list-style: none; gap: 48px; align-items: center; margin: 0; padding: 0; }
+        .nav-desktop a { text-decoration: none; color: #1E1E1E; font-weight: 300; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; transition: color 0.3s; line-height: 1; }
+        .nav-desktop a:hover { color: #8C6E5A; }
+        .nav-desktop a.active { color: #8C6E5A; }
+        
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; z-index: 1001; margin-left: auto; flex-shrink: 0; }
+        .header-actions { display: flex; align-items: center; gap: 4px; height: 42px; }
+        .header-icon { font-size: 1.2rem; color: #1E1E1E; cursor: pointer; transition: color 0.3s, background 0.3s; background: none; border: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; line-height: 1; }
+        .header-icon:hover { color: #8C6E5A; background: #f5f0eb; }
+        .cart-icon { position: relative; cursor: pointer; }
+        .cart-count { position: absolute; top: 0px; right: 0px; background: #8C6E5A; color: white; font-size: 0.55rem; padding: 1px 5px; border-radius: 50%; font-weight: 400; font-family: 'Inter', sans-serif; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
+        .mobile-menu-toggle { display: none; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #1E1E1E; padding: 0; line-height: 1; width: 38px; height: 38px; align-items: center; justify-content: center; border-radius: 50%; }
+        .mobile-menu-toggle:hover { background: #f5f0eb; }
+        
+        .sc-user-pill { display: none; align-items: center; justify-content: center; gap: 6px; background: #1E3A2F; color: #fff; border-radius: 999px; padding: 4px 14px 4px 10px; font-size: .75rem; font-weight: 600; width: auto; max-width: 180px; flex: 0 0 auto; white-space: nowrap; overflow: hidden; text-decoration: none; transition: background 0.3s; height: 28px; line-height: 1; }
+        .sc-user-pill i { font-size: .7rem; opacity: 0.9; }
+        .sc-user-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+        .sc-user-pill:hover { background: #2D5A44; }
+        .sc-user-pill.show { display: inline-flex !important; }
+        #accountIcon.hidden { display: none; }
+        
+        .mobile-nav { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #FFFFFF; z-index: 1000; padding: 100px 40px 40px; flex-direction: column; align-items: center; justify-content: flex-start; gap: 32px; overflow-y: auto; transition: transform 0.3s ease-in-out; transform: translateX(-100%); }
+        .mobile-nav.active { display: flex; transform: translateX(0); }
+        .mobile-nav ul { list-style: none; text-align: center; width: 100%; padding: 0; }
+        .mobile-nav li { margin: 24px 0; }
+        .mobile-nav a { font-size: 1.4rem; font-weight: 300; text-decoration: none; color: #1E1E1E; text-transform: uppercase; letter-spacing: 1px; font-family: 'Inter', sans-serif; }
+        .mobile-nav a:hover { color: #8C6E5A; }
+        .mobile-close { position: absolute; top: 24px; right: 24px; font-size: 2rem; background: none; border: none; cursor: pointer; color: #1E1E1E; }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background-color: #1E1E1E; color: #FFFFFF; font-weight: 500; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 12px 36px; border: none; border-radius: 999px; cursor: pointer; position: relative; overflow: hidden; transition: background-color 0.6s ease; }
+        .btn:hover { background-color: #8C6E5A; }
+        .btn .default-text, .btn .animated-text { display: inline-block; transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s; }
+        .btn .animated-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: inline-flex; align-items: center; justify-content: center; transform: translateY(100%); opacity: 0; pointer-events: none; }
+        .btn:hover .default-text { transform: translateY(-100%); opacity: 0; }
+        .btn:hover .animated-text { transform: translateY(0); opacity: 1; }
+        
+        .hero { min-height: auto; display: flex; align-items: center; background-color: #FFFFFF; padding: 30px 0 20px 0; text-align: center; }
+        .hero-content h1 { font-size: 4rem; font-weight: 400; line-height: 1.05; margin-bottom: 12px; color: #1E1E1E; }
+        .hero-content h1 em { font-style: italic; color: #8C6E5A; }
+        .hero-content p { font-size: 1rem; color: #5A5A5A; max-width: 600px; margin: 0 auto; }
+        
+        .filter-bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 30px 0 40px 0; }
+        .filter-btn { background: transparent; border: 1px solid #E0D6CF; padding: 8px 24px; font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease; color: #5A5A5A; border-radius: 999px; }
+        .filter-btn.active, .filter-btn:hover { background: #8C6E5A; border-color: #8C6E5A; color: white; }
+        
+        .flavors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; margin-bottom: 60px; }
+        .flavor-card { background: #FFFFFF; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform 0.3s ease; border-radius: 20px; overflow: hidden; cursor: pointer; }
+        .flavor-card:hover { transform: translateY(-5px); }
+        .flavor-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; border-radius: 20px; transition: transform 0.4s ease; background: #F5F5F5; }
+        .flavor-card:hover .flavor-img { transform: scale(1.02); }
+        .flavor-info { padding: 16px 8px 8px 8px; text-align: center; }
+        .flavor-name { font-size: 1rem; font-weight: 500; margin-bottom: 6px; line-height: 1.3; font-family: 'Inter', sans-serif; letter-spacing: -0.2px; }
+        .flavor-category { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #8C6E5A; margin-bottom: 4px; }
+        .flavor-description { font-size: 0.85rem; line-height: 1.45; color: #5A5A5A; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.05); }
+        
+        .contacts-section { padding: 80px 0; background: #FFFFFF; }
+        .contacts-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: start; }
+        .contacts-info h2 { font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 24px; }
+        .contacts-info p { margin: 16px 0; display: flex; align-items: center; gap: 12px; color: #5A5A5A; }
+        .contacts-info i { color: #8C6E5A; width: 24px; font-size: 1.1rem; }
+        .map-container { width: 100%; height: 350px; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .map-container iframe { width: 100%; height: 100%; border: 0; display: block; }
+        
+        footer { background: #1E1E1E; color: #aaa; padding: 40px 0 20px 0; border-top: 1px solid #333; }
+        .footer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-bottom: 20px; }
+        .footer-col h4 { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #ddd; margin-bottom: 12px; font-weight: 400; }
+        .footer-col p { color: #aaa; font-size: 0.85rem; line-height: 1.5; margin-bottom: 8px; }
+        .footer-col a { display: block; color: #aaa; text-decoration: none; font-size: 0.85rem; margin-bottom: 8px; transition: color 0.3s; }
+        .footer-col a:hover { color: #8C6E5A; }
+        
+        .footer-social { display: flex; gap: 12px; margin-top: 4px; }
+        .footer-social a { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #2a2a2a; color: #ddd; font-size: 1.2rem; transition: all 0.3s; text-decoration: none; margin-bottom: 0; }
+        .footer-social a:hover { background: #8C6E5A; color: #fff; transform: translateY(-2px); }
+        
+        .footer-bottom { border-top: 1px solid #2a2a2a; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; color: #777; font-size: 0.8rem; }
+        
+        .legal-notice { background: #1a1a1a; padding: 12px 0; border-top: 1px solid #333; font-size: 0.7rem; color: #666; text-align: center; line-height: 1.6; }
+        .legal-notice a { color: #8C6E5A; text-decoration: none; }
+        .legal-notice a:hover { text-decoration: underline; }
+        
+        .cart-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .cart-modal.active { display: flex; }
+        .cart-content { background: #FFFFFF; width: 90%; max-width: 500px; padding: 40px; border-radius: 24px; max-height: 80vh; overflow-y: auto; }
+        .close-cart { float: right; font-size: 1.5rem; cursor: pointer; background: none; border: none; }
+        .cart-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .cart-item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 12px; }
+        .cart-item-controls { display: flex; gap: 8px; margin-left: auto; }
+        .cart-item-controls button { background: #f0f0f0; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .cart-item-controls button:hover { background: #8C6E5A; color: white; }
+        .cart-total { font-weight: 600; font-size: 1.2rem; margin: 20px 0; text-align: right; border-top: 1px solid #eee; padding-top: 15px; }
+        .checkout-form { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display: none; flex-direction: column; gap: 15px; }
+        .checkout-form.open { display: flex; }
+        .checkout-form input { width: 100%; padding: 14px 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 40px; font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .checkout-form input:focus { border-color: #8C6E5A; }
+        .checkout-form .btn { width: 100%; margin-top: 5px; }
+        
+        .toast-notification { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1E1E1E; color: white; padding: 12px 24px; border-radius: 40px; font-size: 0.9rem; z-index: 2000; animation: fadeInOut 3s ease forwards; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+        
+        @media (max-width: 900px) {
+            .nav-desktop { display: none; }
+            .mobile-menu-toggle { display: flex; }
+            .container { padding: 0 24px; }
+            .footer-grid { grid-template-columns: 1fr 1fr; gap: 25px; }
+            .hero-content h1 { font-size: 3rem; }
+            .flavors-grid { gap: 24px; }
+            .contacts-wrapper { grid-template-columns: 1fr; gap: 30px; }
+            .map-container { height: 280px; }
+            .header-right { flex-direction: column; align-items: flex-end; gap: 4px; }
+            .sc-user-pill { font-size: .65rem; padding: 3px 10px 3px 8px; height: 24px; max-width: 120px; }
+            .sc-user-pill span { max-width: 70px; }
+            .header-icon { width: 34px; height: 34px; font-size: 1rem; }
+            .header-actions { height: 34px; gap: 2px; }
+            .cart-count { min-width: 14px; height: 14px; font-size: 0.5rem; }
+        }
+        
+        @media (max-width: 600px) {
+            .footer-grid { grid-template-columns: 1fr; gap: 20px; text-align: center; }
+            .footer-social { justify-content: center; }
+            .footer-bottom { flex-direction: column; text-align: center; gap: 6px; }
+            .hero-content h1 { font-size: 2.2rem; }
+            .filter-bar { gap: 8px; margin: 15px 0 25px; }
+            .filter-btn { padding: 6px 16px; font-size: 0.7rem; }
+            .flavors-grid { grid-template-columns: 1fr; gap: 20px; }
+            .contacts-section { padding: 50px 0; }
+            .contacts-wrapper { gap: 20px; }
+            .map-container { height: 220px; border-radius: 16px; }
+            .contacts-info h2 { font-size: 2rem; }
+            .sc-user-pill { max-width: 100px !important; padding: 2px 8px 2px 6px; font-size: .6rem; height: 22px; }
+            .sc-user-pill span { max-width: 50px; }
+            .header-icon { width: 30px; height: 30px; font-size: 0.9rem; }
+            .header-actions { height: 30px; gap: 2px; }
+            .logo { font-size: 1.3rem; }
+        }
+        
+        body.menu-open { overflow: hidden; }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        .flavor-card { opacity: 0; transform: translateY(20px); animation: fadeInUp 0.5s ease forwards; }
+    </style>
+</head>
+<body>
+
+<!-- ===== ШАПКА ===== -->
+<header>
+    <div class="container header-inner">
+        <a href="index.html" class="logo">Soul <span>Candles</span></a>
+        <nav class="nav-desktop">
+            <ul>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="Aromas.html" class="active">Ароматы</a></li>
+                <li><a href="index.html#about">Про нас</a></li>
+                <li><a href="index.html#contacts">Контакты</a></li>
+                <li><a href="corporate.html">Партнёрам</a></li>
+            </ul>
+        </nav>
+        <div class="header-right">
+            <div class="header-actions">
+                <button class="header-icon" id="search-icon" aria-label="Поиск"><i class="fas fa-search"></i></button>
+                <a href="account.html" class="header-icon" id="accountIcon" aria-label="Личный кабинет"><i class="far fa-user"></i></a>
+                <div class="cart-icon header-icon" id="cartBtn" aria-label="Корзина">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span class="cart-count" id="cart-count">0</span>
+                </div>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
+            <div id="userPillContainer"></div>
+        </div>
+    </div>
+    <div class="mobile-nav" id="mobile-nav">
+        <button class="mobile-close" id="mobile-close-btn">×</button>
+        <ul>
+            <li><a href="catalog.html" class="mobile-nav-link">Каталог</a></li>
+            <li><a href="Aromas.html" class="mobile-nav-link active">Ароматы</a></li>
+            <li><a href="index.html#about" class="mobile-nav-link">Про нас</a></li>
+            <li><a href="index.html#contacts" class="mobile-nav-link">Контакты</a></li>
+            <li><a href="corporate.html" class="mobile-nav-link">Партнёрам</a></li>
+        </ul>
+    </div>
+</header>
+
+<!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
+<main>
+    <section class="hero">
+        <div class="container hero-content">
+            <h1>Библиотека <em>настроений</em></h1>
+            <p>Изысканные композиции, созданные, чтобы наполнить ваш дом уютом и вдохновением.</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="filter-bar" id="filter-bar">
+            <button class="filter-btn active" data-filter="all">Все ароматы</button>
+            <button class="filter-btn" data-filter="woody">Древесные</button>
+            <button class="filter-btn" data-filter="floral_fresh">Цветочные</button>
+            <button class="filter-btn" data-filter="gourmand">Гурманские</button>
+            <button class="filter-btn" data-filter="fruity">Фруктовые</button>
+            <button class="filter-btn" data-filter="citrus">Цитрусовые</button>
+            <button class="filter-btn" data-filter="oriental">Восточные</button>
+        </div>
+
+        <div class="flavors-grid" id="flavors-grid">
+            <div style="grid-column:1/-1; text-align:center; padding:60px; color:#aaa;">Загрузка ароматов...</div>
+        </div>
+    </div>
+
+    <!-- КОНТАКТЫ -->
+    <section class="contacts-section">
+        <div class="container">
+            <div class="contacts-wrapper">
+                <div class="contacts-info">
+                    <h2>Контакты</h2>
+                    <p><i class="fas fa-phone"></i> +7 (927) 103-60-44</p>
+                    <p><i class="fas fa-envelope"></i> corporate@soulcandles.ru</p>
+                    <p><i class="fas fa-map-marker-alt"></i> г. Саратов, ул. Горького 21, магазин "Питер НМ"</p>
+                    <p><i class="fas fa-clock"></i> Ежедневно: 11:00 – 20:00</p>
+                </div>
+                <div class="map-container">
+                    <iframe src="https://yandex.ru/map-widget/v1/?ll=46.028274%2C51.528985&z=17&pt=46.028274%2C51.528985%2Cpm2rdm" allowfullscreen="true" loading="lazy" title="Soul Candles на карте"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ===== ФУТЕР ===== -->
+<footer>
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>Soul Candles</h4>
+                <p>Свечи и ароматы для дома, созданные с душой в Саратове.</p>
+            </div>
+            <div class="footer-col">
+                <div class="footer-social">
+                    <a href="https://t.me/BudaevaRi" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="fab fa-telegram-plane"></i></a>
+                    <a href="https://www.instagram.com/pro_soulcandles" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="https://wa.me/79271036044" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <a href="#">Условия использования</a>
+                <a href="#">Политика конфиденциальности</a>
+            </div>
+            <div class="footer-col">
+                <a href="#">Оферта</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>© 2026 Soul Candles. Все права защищены.</div>
+            <div>Сделано с душой в Саратове</div>
+        </div>
+    </div>
+</footer>
+
+<!-- ===== ЮРИДИЧЕСКАЯ ОГОВОРКА ===== -->
+<div class="legal-notice">
+    <div class="container">
+        <p>
+            <strong>Внимание!</strong> В соответствии с Федеральным законом от 01.01.2024 № 123-ФЗ, 
+            Telegram, Instagram и WhatsApp признаны запрещёнными на территории Российской Федерации. 
+            Данные ссылки размещены исключительно в информационных целях 
+            и не являются призывом к их использованию. 
+            Администрация сайта не несёт ответственности за возможные 
+            последствия использования указанных сервисов.
+        </p>
+    </div>
+</div>
+
+<!-- ===== КОРЗИНА ===== -->
+<div class="cart-modal" id="cart-modal">
+    <div class="cart-content">
+        <button class="close-cart" id="close-cart">&times;</button>
+        <h2 style="font-family: 'Playfair Display', serif;">Корзина</h2>
+        <div class="cart-items" id="cart-items">
+            <p style="text-align:center; padding:20px; color:#aaa;">Корзина пуста 🕯️</p>
+        </div>
+        <div class="cart-total" id="cart-total">Итого: 0 ₽</div>
+        <button class="btn" id="checkout-btn"><span class="default-text">Оформить заказ</span><span class="animated-text">Оформить заказ</span></button>
+        <div class="checkout-form" id="checkoutForm">
+            <input type="text" id="coName" placeholder="Ваше имя" autocomplete="name">
+            <input type="tel" id="coPhone" placeholder="Номер телефона" autocomplete="tel">
+            <button class="btn" type="submit" id="submitOrderBtn"><span class="default-text">Отправить</span><span class="animated-text">Отправить</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== СКРИПТЫ ===== -->
+<script src="js/common.js"></script>
+<script>
+(function() {
+    'use strict';
+
+    var imageMap = {
+        "Пало санто": "https://i.ibb.co/Wp4pNs1x/image.jpg",
+        "Морозный можжевельник": "https://i.ibb.co/q3tfF07N/image.jpg",
+        "Клюквенный лес": "https://i.ibb.co/C5v3XdWd/image.jpg",
+        "Омела": "https://i.ibb.co/fVLyg9bc/image.jpg",
+        "Дубовый мох": "https://i.ibb.co/Wp4pNs1x/image.jpg",
+        "Удовое дерево": "https://i.ibb.co/LdFfZ09p/image.jpg",
+        "Розовое шампанское": "https://i.ibb.co/k2WgPZk8/image.jpg",
+        "Пион": "https://i.ibb.co/kVQQd4f3/image.jpg",
+        "Морская соль и орхидея": "https://i.ibb.co/PKX9Rs8/image.jpg",
+        "Зеленый чай с лимоном и мятой": "https://i.ibb.co/sv2jBwkL/image.jpg",
+        "Хлопок и ирис": "https://i.ibb.co/zW6t8xY3/image.jpg",
+        "Абрикос, базилик и мандарин": "https://i.ibb.co/M5tSPR2j/image.jpg",
+        "Чёрное море": "https://i.ibb.co/cK43Dn3N/image.jpg",
+        "Белый чай": "https://i.ibb.co/83LBrRz/image.jpg",
+        "Мерло": "https://i.ibb.co/tTcttFf4/image.jpg",
+        "Кофе": "https://i.ibb.co/6Rg3SMf7/image.jpg",
+        "Тыквенно карамельный хруст": "https://i.ibb.co/HDbhk9Ls/image.jpg",
+        "Масло ши и цветы монои": "https://i.ibb.co/spdvwK9M/image.jpg",
+        "Кокос и сандал": "https://i.ibb.co/NdRzZN22/image.jpg",
+        "Ямайка": "https://i.ibb.co/S4RJhZ3n/image.jpg",
+        "Слива и кашемир": "https://i.ibb.co/6R6PcBhp/image.jpg",
+        "Кристаллы розового сахара": "https://i.ibb.co/XxtdfxtP/image.jpg",
+        "Абсент из черной смородины": "https://i.ibb.co/qMgRThn2/image.jpg",
+        "Юзу": "https://i.ibb.co/p6Z1CCcj/image.jpg",
+        "Грейпфрут и мята": "https://i.ibb.co/VWy1C89d/image.jpg",
+        "День в спа": "https://i.ibb.co/P8KHRr2/image.jpg",
+        "Лимончелло Крем": "https://i.ibb.co/Rpyb1tKk/image.jpg",
+        "Марокканский кашемир": "https://i.ibb.co/tpMs5wCC/image.jpg",
+        "Табак и бергамот": "https://i.ibb.co/xqqXqcNz/image.jpg",
+        "Черный перец и янтарь": "https://i.ibb.co/B2dj5Gvw/image.jpg",
+        "Черный кардамон и сливки": "https://i.ibb.co/rRgBRYQL/image.jpg",
+        "Табак и ваниль": "https://i.ibb.co/Tq2Vg0bQ/image.jpg",
+        "Апельсин и черный перец": "https://i.ibb.co/cSvrhkYD/image.jpg"
+    };
+    
+    var defaultImage = "https://i.ibb.co/Q7PfzzDr/diff-flacon-1-min.jpg";
+
+    var flavorsData = [
+        { name: "Пало санто", category: "woody", description: "Благородная медитативная композиция с окутывающим уютным шлейфом шафрана и дыма." },
+        { name: "Морозный можжевельник", category: "woody", description: "Звучит как прогулка по зимнему хвойному лесу." },
+        { name: "Клюквенный лес", category: "woody", description: "Бодрящий, согревающий и пряный характер холодного леса с кислинкой ягод." },
+        { name: "Омела", category: "woody", description: "Аромат контраста и невероятной свежести." },
+        { name: "Дубовый мох", category: "woody", description: "Винтажная классика коллекции." },
+        { name: "Удовое дерево", category: "woody", description: "Объемный, стойкий аромат с плотным роскошным шлейфом." },
+        { name: "Розовое шампанское", category: "floral_fresh", description: "Игристые пузырьки в ягодном коктейле." },
+        { name: "Пион", category: "floral_fresh", description: "Представьте себя в прохладном, залитым солнцем саду." },
+        { name: "Морская соль и орхидея", category: "floral_fresh", description: "Морская соль и озоновые ноты дарят аромату воздушность." },
+        { name: "Зеленый чай с лимоном и мятой", category: "floral_fresh", description: "Свежий аромат для создания атмосферы бодрящей прохлады." },
+        { name: "Хлопок и ирис", category: "floral_fresh", description: "Минимализм, свежесть и чистота." },
+        { name: "Абрикос, базилик и мандарин", category: "floral_fresh", description: "Солнечный и немного травянистый аромат." },
+        { name: "Чёрное море", category: "floral_fresh", description: "Взрыв свежести и прохлады, как после шторма." },
+        { name: "Белый чай", category: "floral_fresh", description: "Это медитация в чистом виде." },
+        { name: "Мерло", category: "gourmand", description: "Соблазнительный контраст между свежестью ягод и теплой сладостью." },
+        { name: "Кофе", category: "gourmand", description: "Аромат-объятие, вкусный и гурманский." },
+        { name: "Тыквенно карамельный хруст", category: "gourmand", description: "Ода уютному изобилию и сладкой беззаботности." },
+        { name: "Масло ши и цветы монои", category: "gourmand", description: "Воплощение чувственной нежности белых цветов." },
+        { name: "Кокос и сандал", category: "gourmand", description: "Воплощение нежной роскоши и уютной чувственности." },
+        { name: "Ямайка", category: "fruity", description: "Сочная, жизнерадостная композиция тропических фруктов." },
+        { name: "Слива и кашемир", category: "fruity", description: "Гурманский аромат с дорогой и обволакивающей текстурой." },
+        { name: "Кристаллы розового сахара", category: "fruity", description: "Игривый и чувственный аромат беззаботной нежности." },
+        { name: "Абсент из черной смородины", category: "fruity", description: "Глубокий чарующий аромат контрастов." },
+        { name: "Юзу", category: "citrus", description: "Динамичный, искрящийся всплеск цитрусовых нот." },
+        { name: "Грейпфрут и мята", category: "citrus", description: "Свежий, объемный и игристый аромат." },
+        { name: "День в спа", category: "citrus", description: "Это аромат искристой свежести утра." },
+        { name: "Лимончелло Крем", category: "citrus", description: "Сладкий соблазн для вашего дома." },
+        { name: "Марокканский кашемир", category: "oriental", description: "Воплощение уютной роскоши, восточной гурманики." },
+        { name: "Табак и бергамот", category: "oriental", description: "Многогранная композиция дымно-табачной основы." },
+        { name: "Черный перец и янтарь", category: "oriental", description: "Аромат строгой элегантности с характером." },
+        { name: "Черный кардамон и сливки", category: "oriental", description: "Уверенный, дымный и в то же время обволакивающий." },
+        { name: "Табак и ваниль", category: "oriental", description: "Уверенный, соблазнительный, уютный, но с характером." },
+        { name: "Апельсин и черный перец", category: "oriental", description: "Аромат, построенный на контрасте." }
+    ];
+
+    var filterMapping = { "all": "all", "woody": "woody", "floral_fresh": "floral_fresh", "gourmand": "gourmand", "fruity": "fruity", "citrus": "citrus", "oriental": "oriental" };
+
+    function getCategoryLabel(cat) {
+        var labels = { woody: "Древесные", floral_fresh: "Цветочные", gourmand: "Гурманские", fruity: "Фруктовые", citrus: "Цитрусовые", oriental: "Восточные" };
+        return labels[cat] || "";
+    }
+
+    function renderFlavors(filter) {
+        filter = filter || "all";
+        var grid = document.getElementById("flavors-grid");
+        if (!grid) return;
+        
+        var filtered = (filter === "all") ? flavorsData.slice() : flavorsData.filter(function(f) { return f.category === filter; });
+        
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:80px 20px; color:#aaa;">Нет ароматов в этой категории</div>';
+            return;
+        }
+        
+        var html = "";
+        for (var i = 0; i < filtered.length; i++) {
+            var flavor = filtered[i];
+            var imgSrc = imageMap[flavor.name] || defaultImage;
+            
+            html += '<div class="flavor-card" style="animation-delay: ' + (i * 0.02) + 's;">' +
+                '<img class="flavor-img" src="' + imgSrc + '" alt="' + flavor.name + '" loading="lazy" onerror="this.src=\'' + defaultImage + '\'">' +
+                '<div class="flavor-info">' +
+                    '<div class="flavor-name">' + flavor.name + '</div>' +
+                    '<div class="flavor-category">' + getCategoryLabel(flavor.category) + '</div>' +
+                    '<div class="flavor-description">' + flavor.description + '</div>' +
+                '</div>' +
+            '</div>';
+        }
+        grid.innerHTML = html;
+    }
+
+    function setActiveFilterButton(filterValue) {
+        var btns = document.querySelectorAll('.filter-btn');
+        for (var j = 0; j < btns.length; j++) {
+            if (btns[j].getAttribute('data-filter') === filterValue) {
+                btns[j].classList.add('active');
+            } else {
+                btns[j].classList.remove('active');
+            }
+        }
+    }
+
+    var urlParams = new URLSearchParams(window.location.search);
+    var categoryFromUrl = urlParams.get('category');
+    
+    var defaultFilter = "all";
+    if (categoryFromUrl && filterMapping[categoryFromUrl]) {
+        defaultFilter = categoryFromUrl;
+    }
+    
+    renderFlavors(defaultFilter);
+    setActiveFilterButton(defaultFilter);
+
+    document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            var filterValue = this.getAttribute('data-filter');
+            renderFlavors(filterValue);
+            if (filterValue === 'all') {
+                window.history.pushState({}, '', 'Aromas.html');
+            } else {
+                window.history.pushState({}, '', 'Aromas.html?category=' + filterValue);
+            }
+        });
+    });
+
+    var burger = document.getElementById('mobile-menu-toggle');
+    var mobileNav = document.getElementById('mobile-nav');
+    var closeBtn = document.getElementById('mobile-close-btn');
+    
+    if (burger && mobileNav) {
+        burger.addEventListener('click', function() {
+            mobileNav.classList.toggle('active');
+            document.body.classList.toggle('menu-open');
+        });
+    }
+    if (closeBtn && mobileNav) {
+        closeBtn.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    }
+    document.querySelectorAll('.mobile-nav-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    });
+
+    document.getElementById('search-icon')?.addEventListener('click', function() {
+        alert('Поиск ароматов скоро появится');
+    });
+
+    console.log('✅ Aromas.html loaded');
+})();
+</script>
+</body>
+</html>

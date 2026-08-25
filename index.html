@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Soul Candles — искусство ароматов</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..500&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #FFFFFF; color: #1E1E1E; line-height: 1.5; font-weight: 300; }
+        h1, h2, h3, h4, .logo { font-family: 'Playfair Display', serif; font-weight: 400; letter-spacing: -0.01em; }
+        h2 { font-size: 2.8rem; margin-bottom: 1rem; color: #1E1E1E; line-height: 1.1; }
+        h2 span { font-family: 'Inter', sans-serif; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; color: #8C6E5A; display: block; margin-bottom: 0.5rem; font-weight: 400; }
+        .container { max-width: 1440px; margin: 0 auto; padding: 0 40px; }
+        
+        /* ===== ШАПКА ===== */
+        header { 
+            background: #FFFFFF; 
+            padding: 20px 0; 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            border-bottom: 1px solid rgba(0,0,0,0.05); 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02); 
+        }
+        .header-inner { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            flex-wrap: wrap; 
+            gap: 20px; 
+            position: relative;
+        }
+        .logo { 
+            font-size: 1.8rem; 
+            font-weight: 500; 
+            color: #8C6E5A; 
+            text-decoration: none; 
+            letter-spacing: -0.5px; 
+            z-index: 1001; 
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .logo span { font-weight: 300; color: #1E1E1E; }
+        
+        .nav-desktop { 
+            flex: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+        .nav-desktop ul { 
+            display: flex; 
+            list-style: none; 
+            gap: 48px; 
+            align-items: center; 
+            margin: 0; 
+            padding: 0; 
+        }
+        .nav-desktop a { 
+            text-decoration: none; 
+            color: #1E1E1E; 
+            font-weight: 300; 
+            font-size: 0.95rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            transition: color 0.3s; 
+            line-height: 1;
+        }
+        .nav-desktop a:hover { color: #8C6E5A; }
+        
+        /* ===== ПРАВАЯ ЧАСТЬ ШАПКИ ===== */
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            z-index: 1001;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+        
+        .header-actions { 
+            display: flex; 
+            align-items: center; 
+            gap: 4px; 
+            height: 42px;
+        }
+        .header-icon { 
+            font-size: 1.2rem; 
+            color: #1E1E1E; 
+            cursor: pointer; 
+            transition: color 0.3s, background 0.3s; 
+            background: none; 
+            border: none; 
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            line-height: 1;
+        }
+        .header-icon:hover { 
+            color: #8C6E5A; 
+            background: #f5f0eb; 
+        }
+        .cart-icon { position: relative; cursor: pointer; }
+        .cart-count { 
+            position: absolute; 
+            top: 0px; 
+            right: 0px; 
+            background: #8C6E5A; 
+            color: white; 
+            font-size: 0.55rem; 
+            padding: 1px 5px; 
+            border-radius: 50%; 
+            font-weight: 400; 
+            font-family: 'Inter', sans-serif; 
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-menu-toggle { 
+            display: none; 
+            background: none; 
+            border: none; 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            color: #1E1E1E; 
+            padding: 0; 
+            line-height: 1; 
+            width: 38px;
+            height: 38px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .mobile-menu-toggle:hover { background: #f5f0eb; }
+        
+        /* ===== ПЛАШКА ПОЛЬЗОВАТЕЛЯ ===== */
+        .sc-user-pill {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #1E3A2F;
+            color: #fff;
+            border-radius: 999px;
+            padding: 4px 14px 4px 10px;
+            font-size: .75rem;
+            font-weight: 600;
+            width: auto;
+            max-width: 180px;
+            flex: 0 0 auto;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+            transition: background 0.3s;
+            height: 28px;
+            line-height: 1;
+        }
+        .sc-user-pill i { font-size: .7rem; opacity: 0.9; }
+        .sc-user-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+        .sc-user-pill:hover { background: #2D5A44; }
+        .sc-user-pill.show { display: inline-flex !important; }
+        #accountIcon.hidden { display: none; }
+        
+        /* ===== МОБИЛЬНОЕ МЕНЮ ===== */
+        .mobile-nav { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #FFFFFF; z-index: 1000; padding: 100px 40px 40px; flex-direction: column; align-items: center; justify-content: flex-start; gap: 32px; overflow-y: auto; transition: transform 0.3s ease-in-out; transform: translateX(-100%); }
+        .mobile-nav.active { display: flex; transform: translateX(0); }
+        .mobile-nav ul { list-style: none; text-align: center; width: 100%; padding: 0; }
+        .mobile-nav li { margin: 24px 0; }
+        .mobile-nav a { font-size: 1.4rem; font-weight: 300; text-decoration: none; color: #1E1E1E; text-transform: uppercase; letter-spacing: 1px; font-family: 'Inter', sans-serif; }
+        .mobile-nav a:hover { color: #8C6E5A; }
+        .mobile-close { position: absolute; top: 24px; right: 24px; font-size: 2rem; background: none; border: none; cursor: pointer; color: #1E1E1E; }
+        
+        /* ===== ГЕРОЙ ===== */
+        .hero { min-height: auto; display: flex; align-items: center; background-color: #FFFFFF; overflow: visible; padding: 30px 0 50px 0; }
+        .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+        .hero-content { padding-right: 60px; }
+        .hero-content h1 { font-size: 4.5rem; font-weight: 400; line-height: 1.05; margin-bottom: 25px; color: #1E1E1E; }
+        .hero-content h1 em { font-style: italic; color: #8C6E5A; }
+        .hero-content p { font-size: 1.1rem; color: #5A5A5A; margin-bottom: 35px; max-width: 450px; }
+        .hero-image { width: 100%; height: auto; max-height: 700px; background: #F0F0F0; border-radius: 24px; overflow: hidden; box-shadow: 0 30px 40px -20px rgba(0,0,0,0.1); aspect-ratio: 1 / 1.1; }
+        .hero-image img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; opacity: 0.95; transition: transform 0.5s; display: block; }
+        .hero-image:hover img { transform: scale(1.02); }
+        
+        /* ===== КНОПКИ ===== */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background-color: #1E1E1E; color: #FFFFFF; font-weight: 500; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 12px 36px; border: none; border-radius: 999px; cursor: pointer; position: relative; overflow: hidden; transition: background-color 0.6s ease; }
+        .btn:hover { background-color: #8C6E5A; }
+        .btn .default-text, .btn .animated-text { display: inline-block; transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s; }
+        .btn .animated-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: inline-flex; align-items: center; justify-content: center; transform: translateY(100%); opacity: 0; pointer-events: none; }
+        .btn:hover .default-text { transform: translateY(-100%); opacity: 0; }
+        .btn:hover .animated-text { transform: translateY(0); opacity: 1; }
+        
+        /* ===== СЕКЦИИ ===== */
+        .section { padding: 100px 0; }
+        .section-header { text-align: center; max-width: 600px; margin: 0 auto 60px; }
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
+        
+        .product-card { background: #FFFFFF; text-decoration: none; color: inherit; display: flex; flex-direction: column; transition: transform 0.3s ease; border-radius: 20px; overflow: hidden; cursor: pointer; }
+        .product-card .product-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; border-radius: 20px; transition: transform 0.4s ease; background: #F5F5F5; }
+        .product-card:hover .product-img { transform: scale(1.02); }
+        .card-info { padding: 16px 8px 8px 8px; text-align: center; }
+        .product-card h3 { font-size: 1rem; font-weight: 500; margin-bottom: 6px; line-height: 1.3; font-family: 'Inter', sans-serif; letter-spacing: -0.2px; }
+        .product-card .category { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #8C6E5A; margin-bottom: 4px; }
+        .price { color: #8C6E5A; font-weight: 500; font-size: 1rem; margin-top: 4px; min-height: 1.8rem; }
+        .price.loading { color: #aaa; font-size: 0.8rem; }
+        .card-buy-btn { display: block; margin-top: 12px; margin-left: auto; margin-right: auto; background: none; border: 1px solid #1E1E1E; border-radius: 999px; padding: 8px 0; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: #1E1E1E; cursor: pointer; transition: all 0.2s ease; width: 50%; text-align: center; background-color: transparent; opacity: 1; transform: none; }
+        .card-buy-btn:hover { background-color: #1E1E1E; color: #FFFFFF; }
+        
+        /* ===== СЕМЕЙСТВА АРОМАТОВ ===== */
+        .families-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 40px; }
+        .family-card { background: #FFFFFF; border-radius: 20px; overflow: hidden; text-align: center; transition: all 0.3s ease; box-shadow: 0 8px 20px rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.04); cursor: pointer; }
+        .family-card:hover { transform: translateY(-6px); box-shadow: 0 20px 30px -12px rgba(0,0,0,0.1); border-color: #8C6E5A20; }
+        .family-img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; transition: transform 0.5s ease; }
+        .family-card:hover .family-img { transform: scale(1.02); }
+        .family-text { padding: 24px 20px 28px; }
+        .family-card h3 { font-size: 1.6rem; font-weight: 500; font-family: 'Playfair Display', serif; margin-bottom: 8px; color: #1E1E1E; }
+        .family-card p { font-size: 0.9rem; color: #5A5A5A; line-height: 1.4; }
+        
+        /* ===== О НАС ===== */
+        .about-minimal { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; background: #FFFFFF; padding: 60px 40px; max-width: 1440px; margin: 0 auto; }
+        .about-minimal img { width: 100%; border-radius: 24px; object-fit: cover; transition: transform 0.4s ease; }
+        .about-minimal img:hover { transform: scale(1.02); }
+        
+        /* ===== ЛОЯЛЬНОСТЬ ===== */
+        .loyalty { background: #1E1E1E; color: white; padding: 60px 40px; text-align: center; }
+        .loyalty h2 { color: white; }
+        .loyalty .btn { background: white; color: #1E1E1E; margin-top: 30px; }
+        .loyalty .btn:hover { background: #8C6E5A; color: white; }
+        
+        /* ===== КОНТАКТЫ ===== */
+        .contacts-section {
+            padding: 80px 0;
+            background: #FFFFFF;
+        }
+        .contacts-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            align-items: start;
+        }
+        .contacts-info h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            margin-bottom: 24px;
+        }
+        .contacts-info p {
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #5A5A5A;
+        }
+        .contacts-info i {
+            color: #8C6E5A;
+            width: 24px;
+            font-size: 1.1rem;
+        }
+        .map-container {
+            width: 100%;
+            height: 350px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .map-container iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+        
+        /* ===== ФУТЕР ===== */
+        footer {
+            background: #1E1E1E;
+            color: #aaa;
+            padding: 40px 0 20px 0;
+            border-top: 1px solid #333;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        .footer-col h4 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            color: #ddd;
+            margin-bottom: 12px;
+            font-weight: 400;
+        }
+        .footer-col p {
+            color: #aaa;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        .footer-col a {
+            display: block;
+            color: #aaa;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            transition: color 0.3s;
+        }
+        .footer-col a:hover {
+            color: #8C6E5A;
+        }
+        
+        /* ===== СОЦСЕТИ В ФУТЕРЕ (горизонтально) ===== */
+        .footer-social {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .footer-social a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            color: #ddd;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            text-decoration: none;
+            margin-bottom: 0;
+        }
+        .footer-social a:hover {
+            background: #8C6E5A;
+            color: #fff;
+            transform: translateY(-2px);
+        }
+        
+        .footer-bottom {
+            border-top: 1px solid #2a2a2a;
+            padding-top: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            color: #777;
+            font-size: 0.8rem;
+        }
+        
+        /* ===== ЮРИДИЧЕСКАЯ ОГОВОРКА ===== */
+        .legal-notice {
+            background: #1a1a1a;
+            padding: 12px 0;
+            border-top: 1px solid #333;
+            font-size: 0.7rem;
+            color: #666;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .legal-notice a {
+            color: #8C6E5A;
+            text-decoration: none;
+        }
+        .legal-notice a:hover {
+            text-decoration: underline;
+        }
+        
+        /* ===== КОРЗИНА ===== */
+        .cart-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .cart-modal.active { display: flex; }
+        .cart-content { background: #FFFFFF; width: 90%; max-width: 500px; padding: 40px; border-radius: 24px; max-height: 80vh; overflow-y: auto; }
+        .close-cart { float: right; font-size: 1.5rem; cursor: pointer; background: none; border: none; }
+        .cart-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .cart-item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 12px; }
+        .cart-item-controls { display: flex; gap: 8px; margin-left: auto; }
+        .cart-item-controls button { background: #f0f0f0; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .cart-item-controls button:hover { background: #8C6E5A; color: white; }
+        .cart-total { font-weight: 600; font-size: 1.2rem; margin: 20px 0; text-align: right; border-top: 1px solid #eee; padding-top: 15px; }
+        .checkout-form { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display: none; flex-direction: column; gap: 15px; }
+        .checkout-form.open { display: flex; }
+        .checkout-form input { width: 100%; padding: 14px 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 40px; font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .checkout-form input:focus { border-color: #8C6E5A; }
+        .checkout-form .btn { width: 100%; margin-top: 5px; }
+        
+        /* ===== ТОСТ ===== */
+        .toast-notification { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1E1E1E; color: white; padding: 12px 24px; border-radius: 40px; font-size: 0.9rem; z-index: 2000; animation: fadeInOut 3s ease forwards; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+        
+        /* ===== АДАПТИВ ===== */
+        @media (max-width: 1024px) {
+            .hero-content h1 { font-size: 3.5rem; }
+            .hero-image { max-height: 500px; aspect-ratio: 1 / 1.2; }
+            .hero-image img { object-position: center 30%; }
+        }
+        
+        @media (max-width: 900px) {
+            .hero-grid, .about-minimal { grid-template-columns: 1fr; }
+            .hero-content { padding: 0; text-align: center; }
+            .hero-content h1 { font-size: 3.2rem; }
+            .hero-content p { margin: 0 auto 30px; }
+            .hero-image { max-height: 450px; aspect-ratio: 1 / 1.3; }
+            .hero-image img { object-position: center 25%; }
+            .nav-desktop { display: none; }
+            .mobile-menu-toggle { display: flex; }
+            .container { padding: 0 24px; }
+            .about-minimal { padding: 40px 20px; }
+            .loyalty { padding: 40px 20px; }
+            
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 25px;
+            }
+            
+            .product-grid { gap: 20px; }
+            .card-buy-btn { width: 70%; }
+            .families-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+            
+            .contacts-wrapper {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            .map-container {
+                height: 280px;
+            }
+            
+            .header-right {
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 4px;
+            }
+            .sc-user-pill {
+                font-size: .65rem;
+                padding: 3px 10px 3px 8px;
+                height: 24px;
+                max-width: 120px;
+            }
+            .sc-user-pill span { max-width: 70px; }
+            .header-icon { width: 34px; height: 34px; font-size: 1rem; }
+            .header-actions { height: 34px; gap: 2px; }
+            .cart-count { min-width: 14px; height: 14px; font-size: 0.5rem; }
+        }
+        
+        @media (max-width: 600px) {
+            .hero-content h1 { font-size: 2.8rem; }
+            .hero-image { max-height: 350px; aspect-ratio: 1 / 1.2; }
+            .hero-image img { object-position: center 20%; }
+            .about-minimal img { border-radius: 16px; }
+            .family-card h3 { font-size: 1.3rem; }
+            .family-text { padding: 16px 12px 20px; }
+            .families-grid { grid-template-columns: 1fr; }
+            .card-buy-btn { width: 100%; }
+            
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                text-align: center;
+            }
+            .footer-social {
+                justify-content: center;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
+                gap: 6px;
+            }
+            
+            .contacts-section { padding: 50px 0; }
+            .contacts-wrapper { gap: 20px; }
+            .map-container { height: 220px; border-radius: 16px; }
+            .contacts-info h2 { font-size: 2rem; }
+            
+            .sc-user-pill { 
+                max-width: 100px !important; 
+                padding: 2px 8px 2px 6px; 
+                font-size: .6rem;
+                height: 22px;
+            }
+            .sc-user-pill span { max-width: 50px; }
+            .header-icon { width: 30px; height: 30px; font-size: 0.9rem; }
+            .header-actions { height: 30px; gap: 2px; }
+            .logo { font-size: 1.3rem; }
+        }
+        
+        body.menu-open { overflow: hidden; }
+        @keyframes softPulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        .product-card.pulse-feedback { animation: softPulse 0.3s ease-out; }
+    </style>
+</head>
+<body>
+
+<!-- ===== ШАПКА ===== -->
+<header>
+    <div class="container header-inner">
+        <a href="index.html" class="logo">Soul <span>Candles</span></a>
+        
+        <nav class="nav-desktop">
+            <ul>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="Aromas.html">Ароматы</a></li>
+                <li><a href="#about">Про нас</a></li>
+                <li><a href="#contacts">Контакты</a></li>
+                <li><a href="corporate.html">Партнёрам</a></li>
+            </ul>
+        </nav>
+        
+        <div class="header-right">
+            <div class="header-actions">
+                <button class="header-icon" id="search-icon" aria-label="Поиск"><i class="fas fa-search"></i></button>
+                <a href="account.html" class="header-icon" id="accountIcon" aria-label="Личный кабинет"><i class="far fa-user"></i></a>
+                <div class="cart-icon header-icon" id="cartBtn" aria-label="Корзина">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span class="cart-count" id="cart-count">0</span>
+                </div>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
+            <div id="userPillContainer"></div>
+        </div>
+    </div>
+    
+    <div class="mobile-nav" id="mobile-nav">
+        <button class="mobile-close" id="mobile-close-btn">×</button>
+        <ul>
+            <li><a href="catalog.html" class="mobile-nav-link">Каталог</a></li>
+            <li><a href="Aromas.html" class="mobile-nav-link">Ароматы</a></li>
+            <li><a href="#about" class="mobile-nav-link">Про нас</a></li>
+            <li><a href="#contacts" class="mobile-nav-link">Контакты</a></li>
+            <li><a href="corporate.html" class="mobile-nav-link">Партнёрам</a></li>
+        </ul>
+    </div>
+</header>
+
+<!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
+<main>
+
+    <!-- ГЕРОЙ -->
+    <section class="hero">
+        <div class="container hero-grid">
+            <div class="hero-content">
+                <h1>Атмосфера<br><em>настроение</em><br>ты</h1>
+                <p>В коллекции собрано более 30 композиций, созданных для ваших воспоминаний.</p>
+                <a href="catalog.html" class="btn"><span class="default-text">Исследовать</span><span class="animated-text">Исследовать</span></a>
+            </div>
+            <div class="hero-image">
+                <img src="https://i.ibb.co/67R7cLG7/photo-2026-03-18-14-56-03.jpg" alt="Soul Candles">
+            </div>
+        </div>
+    </section>
+
+    <!-- ВЫБОР ПОКУПАТЕЛЕЙ -->
+    <section id="shop" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span>Лучшее</span>
+                <h2>Выбор покупателей</h2>
+            </div>
+            <div class="product-grid" id="home-products">
+                <div class="product-card" data-link="Glass.html" data-id="candle_glass_200" data-name="Свеча в стакане 200 мл" data-img="https://i.ibb.co/SDs71wxk/2.jpg">
+                    <img class="product-img" src="https://i.ibb.co/SDs71wxk/2.jpg" alt="Свеча в стакане 200 мл" loading="lazy">
+                    <div class="card-info">
+                        <div class="category">СВЕЧА</div>
+                        <h3>Свеча в стакане 200 мл</h3>
+                        <div class="price"><span class="loading-text">Загрузка...</span></div>
+                        <button class="card-buy-btn add-to-cart">Купить</button>
+                    </div>
+                </div>
+                
+                <div class="product-card" data-link="Diffuser50.html" data-id="home_diffuser_50" data-name="Диффузор для дома 50 мл" data-img="https://i.ibb.co/gZhXjjvt/1.jpg">
+                    <img class="product-img" src="https://i.ibb.co/gZhXjjvt/1.jpg" alt="Диффузор для дома 50 мл" loading="lazy">
+                    <div class="card-info">
+                        <div class="category">ДИФФУЗОР</div>
+                        <h3>Диффузор для дома 50 мл</h3>
+                        <div class="price"><span class="loading-text">Загрузка...</span></div>
+                        <button class="card-buy-btn add-to-cart">Купить</button>
+                    </div>
+                </div>
+                
+                <div class="product-card" data-link="Solid15.html" data-id="solid_perfume_15" data-name="Твердые духи 15 мл" data-img="https://i.ibb.co/TqPkdc1T/1.jpg">
+                    <img class="product-img" src="https://i.ibb.co/TqPkdc1T/1.jpg" alt="Твердые духи 15 мл" loading="lazy">
+                    <div class="card-info">
+                        <div class="category">ТВЕРДЫЕ ДУХИ</div>
+                        <h3>Твердые духи 15 мл</h3>
+                        <div class="price"><span class="loading-text">Загрузка...</span></div>
+                        <button class="card-buy-btn add-to-cart">Купить</button>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 60px;">
+                <a href="catalog.html" class="btn"><span class="default-text">Смотреть весь каталог</span><span class="animated-text">Смотреть весь каталог</span></a>
+            </div>
+        </div>
+    </section>
+
+    <!-- СЕМЕЙСТВА АРОМАТОВ -->
+    <section id="families" class="section">
+        <div class="container">
+            <div class="section-header">
+                <span>Семейства ароматов</span>
+                <h2>Выбери своё настроение</h2>
+            </div>
+            <div class="families-grid">
+                <div class="family-card" data-family="woody">
+                    <img class="family-img" src="https://i.ibb.co/Wp4pNs1x/image.jpg" alt="Древесные ароматы" loading="lazy">
+                    <div class="family-text"><h3>Древесные и природные</h3></div>
+                </div>
+                <div class="family-card" data-family="floral_fresh">
+                    <img class="family-img" src="https://i.ibb.co/PKX9Rs8/image.jpg" alt="Цветочные ароматы" loading="lazy">
+                    <div class="family-text"><h3>Цветочные и свежие</h3></div>
+                </div>
+                <div class="family-card" data-family="gourmand">
+                    <img class="family-img" src="https://i.ibb.co/NdRzZN22/image.jpg" alt="Гурманские ароматы" loading="lazy">
+                    <div class="family-text"><h3>Гурманские</h3></div>
+                </div>
+                <div class="family-card" data-family="fruity">
+                    <img class="family-img" src="https://i.ibb.co/S4RJhZ3n/image.jpg" alt="Фруктовые ароматы" loading="lazy">
+                    <div class="family-text"><h3>Фруктовые</h3></div>
+                </div>
+                <div class="family-card" data-family="citrus">
+                    <img class="family-img" src="https://i.ibb.co/VWy1C89d/image.jpg" alt="Цитрусовые ароматы" loading="lazy">
+                    <div class="family-text"><h3>Цитрусовые</h3></div>
+                </div>
+                <div class="family-card" data-family="oriental">
+                    <img class="family-img" src="https://i.ibb.co/tpMs5wCC/image.jpg" alt="Восточные ароматы" loading="lazy">
+                    <div class="family-text"><h3>Восточные и пудровые</h3></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- О НАС -->
+    <section id="about" class="about-minimal container">
+        <img src="https://i.ibb.co/0RgzN98N/photo-2026-05-27-15-51-06.jpg" alt="Римма" loading="lazy">
+        <div>
+            <span style="color: #8C6E5A; text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem;">Основатель</span>
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 2.2rem; margin: 10px 0 20px;">Привет! Меня зовут Римма и я создаю свечи и ароматы для дома Soul Candles</h2>
+            <p style="color: #5A5A5A; margin-bottom: 16px;">Я верю, что дом — это не просто стены, а живое пространство, которое должно отражать внутренний мир, успокаивать, вдохновлять или наполнять энергией</p>
+            <p style="color: #5A5A5A;">Поэтому каждая моя свеча или диффузор - это тщательно подобранная композиция, где каждая нота имеет значение</p>
+        </div>
+    </section>
+
+    <!-- КЛУБ БЕСКОНЕЧНОЙ СВЕЧИ -->
+    <section class="loyalty">
+        <div class="container">
+            <span style="color: #8C6E5A; text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem;">Клуб бесконечной свечи</span>
+            <h2>Подарите свече вторую жизнь</h2>
+            <p style="max-width: 600px; margin: 20px auto; color: #ccc;">Возвращайте использованные банки и получайте скидку 10% на новое наполнение. А после 5 возвратов — свеча бесплатно!</p>
+            <a href="club.html" class="btn loyalty-btn"><span class="default-text">Узнать больше</span><span class="animated-text">Узнать больше</span></a>
+        </div>
+    </section>
+
+    <!-- КОНТАКТЫ -->
+    <section id="contacts" class="contacts-section">
+        <div class="container">
+            <div class="contacts-wrapper">
+                <div class="contacts-info">
+                    <h2>Контакты</h2>
+                    <p><i class="fas fa-phone"></i> +7 (927) 103-60-44</p>
+                    <p><i class="fas fa-envelope"></i> corporate@soulcandles.ru</p>
+                    <p><i class="fas fa-map-marker-alt"></i> г. Саратов, ул. Горького 21, магазин "Питер НМ"</p>
+                    <p><i class="fas fa-clock"></i> Ежедневно: 11:00 – 20:00</p>
+                </div>
+                <div class="map-container">
+                    <iframe 
+                        src="https://yandex.ru/map-widget/v1/?ll=46.028274%2C51.528985&z=17&pt=46.028274%2C51.528985%2Cpm2rdm" 
+                        allowfullscreen="true" 
+                        loading="lazy" 
+                        title="Soul Candles на карте">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- ===== ФУТЕР ===== -->
+<footer>
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>Soul Candles</h4>
+                <p>Свечи и ароматы для дома, созданные с душой в Саратове.</p>
+            </div>
+            <div class="footer-col">
+                <div class="footer-social">
+                    <a href="https://t.me/BudaevaRi" target="_blank" rel="noopener noreferrer" aria-label="Telegram">
+                        <i class="fab fa-telegram-plane"></i>
+                    </a>
+                    <a href="https://www.instagram.com/pro_soulcandles" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="https://wa.me/79271036044" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <a href="#">Условия использования</a>
+                <a href="#">Политика конфиденциальности</a>
+            </div>
+            <div class="footer-col">
+                <a href="#">Оферта</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>© 2026 Soul Candles. Все права защищены.</div>
+            <div>Сделано с душой в Саратове</div>
+        </div>
+    </div>
+</footer>
+
+<!-- ===== ЮРИДИЧЕСКАЯ ОГОВОРКА ===== -->
+<div class="legal-notice">
+    <div class="container">
+        <p>
+            <strong>Внимание!</strong> В соответствии с Федеральным законом от 01.01.2024 № 123-ФЗ, 
+            Telegram, Instagram и WhatsApp признаны запрещёнными на территории Российской Федерации. 
+            Данные ссылки размещены исключительно в информационных целях 
+            и не являются призывом к их использованию. 
+            Администрация сайта не несёт ответственности за возможные 
+            последствия использования указанных сервисов.
+        </p>
+    </div>
+</div>
+
+<!-- ===== КОРЗИНА ===== -->
+<div class="cart-modal" id="cart-modal">
+    <div class="cart-content">
+        <button class="close-cart" id="close-cart">&times;</button>
+        <h2 style="font-family: 'Playfair Display', serif;">Корзина</h2>
+        <div class="cart-items" id="cart-items">
+            <p style="text-align:center; padding:20px; color:#aaa;">Корзина пуста 🕯️</p>
+        </div>
+        <div class="cart-total" id="cart-total">Итого: 0 ₽</div>
+        <button class="btn" id="checkout-btn"><span class="default-text">Оформить заказ</span><span class="animated-text">Оформить заказ</span></button>
+        <div class="checkout-form" id="checkoutForm">
+            <input type="text" id="coName" placeholder="Ваше имя" autocomplete="name">
+            <input type="tel" id="coPhone" placeholder="Номер телефона" autocomplete="tel">
+            <button class="btn" type="submit" id="submitOrderBtn"><span class="default-text">Отправить</span><span class="animated-text">Отправить</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== СКРИПТЫ ===== -->
+<script src="js/common.js"></script>
+
+<script>
+(function() {
+    'use strict';
+
+    function loadHomePrices() {
+        fetch('api_get_price.php', { cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success && data.products) {
+                    var priceMap = {};
+                    for (var i = 0; i < data.products.length; i++) {
+                        priceMap[data.products[i].product_id] = data.products[i].price;
+                    }
+                    
+                    var cards = document.querySelectorAll('.product-card');
+                    for (var j = 0; j < cards.length; j++) {
+                        var card = cards[j];
+                        var productId = card.getAttribute('data-id');
+                        if (productId && priceMap[productId]) {
+                            var priceEl = card.querySelector('.price');
+                            if (priceEl) {
+                                priceEl.innerHTML = priceMap[productId] + ' ₽';
+                                card.setAttribute('data-price', priceMap[productId]);
+                            }
+                        }
+                    }
+                }
+            })
+            .catch(function() {});
+    }
+
+    document.querySelectorAll('.product-card').forEach(function(card) {
+        var link = card.dataset.link;
+        if (link) {
+            card.addEventListener('click', function(e) {
+                if (e.target.classList.contains('add-to-cart')) return;
+                window.location.href = link;
+            });
+        }
+    });
+
+    document.querySelectorAll('.add-to-cart').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var card = e.target.closest('.product-card');
+            var priceText = card.querySelector('.price').innerText;
+            var price = parseInt(priceText.replace(/[^\d]/g, ''));
+            
+            if (isNaN(price) || priceText.includes('Загрузка')) {
+                if (window.SoulCandles && window.SoulCandles.showToast) {
+                    window.SoulCandles.showToast('⏳ Цена загружается, подождите секунду...');
+                }
+                return;
+            }
+            
+            if (window.SoulCandles && window.SoulCandles.addToCart) {
+                window.SoulCandles.addToCart({
+                    id: card.dataset.id,
+                    name: card.dataset.name,
+                    price: price,
+                    img: card.dataset.img
+                });
+            }
+        });
+    });
+
+    document.querySelectorAll('.family-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            var family = this.dataset.family;
+            window.location.href = 'Aromas.html?category=' + family;
+        });
+    });
+
+    document.getElementById('search-icon')?.addEventListener('click', function() {
+        alert('Поиск ароматов скоро появится');
+    });
+
+    loadHomePrices();
+
+    var burger = document.getElementById('mobile-menu-toggle');
+    var mobileNav = document.getElementById('mobile-nav');
+    var closeBtn = document.getElementById('mobile-close-btn');
+    
+    if (burger && mobileNav) {
+        burger.addEventListener('click', function() {
+            mobileNav.classList.toggle('active');
+            document.body.classList.toggle('menu-open');
+        });
+    }
+    
+    if (closeBtn && mobileNav) {
+        closeBtn.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    }
+    
+    document.querySelectorAll('.mobile-nav-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    });
+
+    console.log('✅ index.html loaded');
+})();
+</script>
+
+</body>
+</html>

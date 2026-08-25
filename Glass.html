@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soul Candles — свеча в стакане 200 мл | Аромат для дома</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{--green:#1E3A2F;--green2:#2D5A44;--beige:#8C6E5A;--bg:#f7f8fa;--text:#1E1E1E;--muted:#8b8b8b;--border:#e6e6e6}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text)}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit}
+.container{max-width:1200px;margin:0 auto;padding:0 20px}
+/* ШАПКА */
+.site-header{position:sticky;top:0;z-index:100;background:rgba(247,248,250,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.header-inner{display:flex!important;align-items:center!important;gap:20px;height:72px;flex-direction:row!important;flex-wrap:nowrap!important}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;white-space:nowrap}
+.logo-soul{color:var(--beige)}.logo-candles{color:var(--text);font-weight:600}
+.main-nav{display:flex;gap:26px;margin:0 auto}
+.main-nav a{font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;color:#2e2e2e;font-weight:500}
+.main-nav a:hover{color:var(--beige)}
+.header-actions{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-end!important;margin-left:auto!important;width:auto!important;gap:8px}
+.icon-btn{position:relative;width:42px;height:42px;border:none;background:transparent;border-radius:50%;font-size:1.05rem;color:var(--text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:#ececec}
+.cart-count{position:absolute;top:2px;right:0;background:var(--beige);color:#fff;font-size:.62rem;font-weight:700;min-width:16px;height:16px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+/* Плашка пользователя — компактная, между иконками */
+.sc-user-pill{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    background:var(--green);
+    color:#fff;
+    border-radius:999px;
+    padding:8px 16px;
+    font-size:.85rem;
+    font-weight:600;
+    width: auto;
+            max-width: 180px;
+            flex: 0 0 auto;
+    min-width:80px;
+    max-width:180px;
+    text-align:center;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.sc-user-pill span{overflow:hidden;text-overflow:ellipsis}
+.sc-user-pill.show{display:inline-flex!important}
+.burger{display:none}
+/* ТОВАР */
+.product{padding:50px 0 30px}
+.product-inner{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:start}
+.gallery-main{border-radius:24px;overflow:hidden;cursor:pointer}
+.gallery-main img{width:100%;height:460px;object-fit:cover}
+.gallery-hint{color:var(--muted);font-size:.8rem;margin-top:10px;text-align:center}
+.gallery-nav{display:flex;justify-content:center;gap:12px;margin-top:10px}
+.gallery-nav button{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:1.1rem}
+.product-cat{font-size:.7rem;letter-spacing:.18em;color:var(--muted);font-weight:600}
+.p-info h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:600;margin:6px 0 10px}
+.product-price{color:var(--beige);font-weight:700;font-size:1.2rem;min-height:1.2em}
+.p-desc{color:var(--muted);line-height:1.7;margin:16px 0 20px;font-size:.95rem}
+.opt{margin-bottom:16px}
+.opt label{display:block;font-size:.85rem;font-weight:600;margin-bottom:8px}
+.opt select{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px;font-family:inherit;font-size:.95rem;background:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:none;cursor:pointer;border-radius:999px;font-weight:600;font-size:.9rem;padding:14px 30px;transition:all .25s}
+.btn-dark{background:var(--green);color:#fff}
+.btn-dark:hover{background:var(--green2)}
+/* КАРУСЕЛЬ ПОХОЖИХ ТОВАРОВ */
+.similar{padding:40px 0 70px}
+.similar-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;gap:14px}
+.similar-head h2{font-family:'Playfair Display',serif;font-size:1.4rem}
+.similar-sub{color:var(--muted);font-size:.9rem;margin-top:4px}
+.similar-nav{display:flex;gap:10px}
+.similar-nav button{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:1.1rem;transition:all .2s}
+.similar-nav button:hover{border-color:var(--beige);color:var(--beige)}
+.similar-row{display:flex;gap:16px;overflow-x:auto;scroll-behavior:smooth;padding-bottom:10px}
+.sim-card{flex:0 0 220px;background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;transition:transform .3s,box-shadow .3s}
+.sim-card:hover{transform:translateY(-4px);box-shadow:0 14px 40px rgba(0,0,0,.08)}
+.sim-card img{height:160px;width:100%;object-fit:cover}
+.sim-body{padding:12px 14px}
+.sim-name{font-size:.85rem;font-weight:600;margin-bottom:4px}
+.sim-price{color:var(--beige);font-weight:700;font-size:.9rem}
+.similar-hint{color:var(--muted);font-size:.8rem;text-align:center;margin-top:12px}
+/* КОНТАКТЫ И ФУТЕР */
+.contacts{padding:70px 0}
+.section-head{text-align:center;margin-bottom:40px}
+.section-tag{display:inline-block;color:var(--beige);font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;font-weight:600;margin-bottom:10px}
+.section-head h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.3rem);font-weight:600}
+.contacts-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.contact-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:26px 20px;text-align:center}
+.contact-card i{font-size:1.3rem;color:var(--beige);margin-bottom:14px}
+.contact-card div{font-weight:600;margin-bottom:6px}
+.contact-card p{color:var(--muted);font-size:.9rem;line-height:1.5}
+.site-footer{background:#151515;color:#cfcfcf;padding:50px 0 30px}
+.footer-inner{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap;align-items:flex-start}
+.footer-logo{font-family:'Playfair Display',serif;font-size:1.4rem;color:#fff}
+.footer-logo span{color:var(--beige)}
+.footer-nav{display:flex;gap:22px;flex-wrap:wrap}
+.footer-nav a{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:#bdbdbd}
+.footer-social{display:flex;gap:12px}
+.footer-social a{width:40px;height:40px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;color:#ddd}
+.footer-social a:hover{background:var(--beige)}
+.footer-bottom{border-top:1px solid #2a2a2a;margin-top:34px;padding-top:20px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#8a8a8a;font-size:.8rem}
+/* КОРЗИНА */
+.cart-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .3s;z-index:200}
+.cart-overlay.open{opacity:1;pointer-events:auto}
+.cart-drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;z-index:201;transform:translateX(100%);transition:transform .35s;display:flex;flex-direction:column;padding:24px}
+.cart-drawer.open{transform:none}
+.cart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.cart-head h3{font-family:'Playfair Display',serif;font-size:1.3rem}
+.cart-close{border:none;background:transparent;font-size:1.5rem;cursor:pointer;color:#333}
+.cart-items{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.cart-item{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-size:.9rem}
+.ci-name{font-weight:600}.ci-qty{color:var(--muted);font-size:.8rem;margin-top:4px}
+.ci-right{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.ci-sum{font-weight:700;color:var(--beige)}
+.ci-remove{border:none;background:none;color:#c0392b;cursor:pointer;font-size:.78rem}
+.cart-empty{color:var(--muted);text-align:center;margin-top:40px}
+.cart-foot{border-top:1px solid var(--border);padding-top:16px;display:flex;flex-direction:column;gap:12px}
+.cart-total{display:flex;justify-content:space-between;font-weight:700}
+.cart-msg{font-size:.85rem;color:#c0392b;min-height:1.1em}
+.checkout-form{display:none;flex-direction:column;gap:12px}
+.checkout-form.open{display:flex}
+.checkout-form input{padding:12px 14px;border:1px solid var(--border);border-radius:12px;font-family:inherit}
+/* АДАПТИВ */
+@media(max-width:960px){
+.main-nav{position:fixed;top:72px;left:0;right:0;background:#fff;flex-direction:column;padding:20px;gap:16px;border-bottom:1px solid var(--border);display:none;z-index:99}
+.main-nav.open{display:flex}
+.burger{display:inline-flex}
+.product-inner{grid-template-columns:1fr}
+.gallery-main img{height:320px}
+.contacts-grid{grid-template-columns:repeat(2,1fr)}
+.similar-head{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:560px){
+.contacts-grid{grid-template-columns:1fr}
+.sc-user-pill{max-width:110px!important;padding:6px 12px;font-size:.75rem}
+.sim-card{flex:0 0 180px}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="logo" href="index.html"><span class="logo-soul">Soul</span> <span class="logo-candles">Candles</span></a>
+        <nav class="main-nav" id="mainNav">
+            <a href="catalog.html">Каталог</a>
+            <a href="Aromas.html">Ароматы</a>
+            <a href="index.html#about">Про меня</a>
+            <a href="#contacts">Контакты</a>
+            <a href="corporate.html">Партнёрам</a>
+        </nav>
+        <div class="header-actions">
+            <a href="account.html" class="icon-btn" id="accountIcon" aria-label="Личный кабинет"><i class="far fa-user"></i></a>
+            <button class="icon-btn" id="cartBtn" aria-label="Корзина">
+                <i class="fas fa-shopping-bag"></i>
+                <span class="cart-count" id="cartCount">0</span>
+            </button>
+            <button class="icon-btn burger" id="burger" aria-label="Меню"><i class="fas fa-bars"></i></button>
+        </div>
+    </div>
+</header>
+
+<section class="product">
+    <div class="container product-inner">
+        <div class="gallery" data-images='["https://i.ibb.co/SDs71wxk/2.jpg"]'>
+            <div class="gallery-main"><img id="gImg" src="https://i.ibb.co/SDs71wxk/2.jpg" alt="Свеча в стакане 200 мл"></div>
+            <div class="gallery-hint"> нажмите для смены фото</div>
+            <div class="gallery-nav"><button id="gPrev">‹</button><button id="gNext">›</button></div>
+        </div>
+        <div class="p-info">
+            <div class="product-cat">СВЕЧА В СТАКАНЕ</div>
+            <h1>Свеча в стакане 200 мл</h1>
+            <div class="product-price" data-price-name="Свеча в стакане 200 мл">Загрузка...</div>
+            <p class="p-desc">Погрузитесь в атмосферу уютного вечера с классической коллекцией свечей в лаконичном стеклянном стакане. Нежный треск деревянного фитиля и изысканные ароматы создадут идеальное настроение.<br>Состав: натуральный соевый воск, ароматическое масло (США, Франция), хлопковый/деревянный фитиль.<br>Объем: 200 мл &nbsp;|&nbsp; Срок ароматизации: 40/45 часов.</p>
+            <div class="opt"><label>Выберите аромат:</label><select id="aromaSelect" data-variant-for="Свеча в стакане 200 мл"><option>Дубовый мох</option></select></div>
+            <div class="opt"><label>Выберите фитиль:</label><select id="wickSelect"><option>Хлопковый</option><option>Деревянный</option></select></div>
+            <button class="btn btn-dark add-to-cart" data-product="Свеча в стакане 200 мл">Добавить в корзину</button>
+        </div>
+    </div>
+</section>
+
+<!-- КАРУСЕЛЬ ПОХОЖИХ ТОВАРОВ -->
+<section class="similar">
+    <div class="container">
+        <div class="similar-head">
+            <div>
+                <h2>Вам также может понравиться</h2>
+                <div class="similar-sub">Похожие товары</div>
+            </div>
+            <div class="similar-nav">
+                <button id="simPrev" aria-label="Назад">‹</button>
+                <button id="simNext" aria-label="Вперёд">›</button>
+            </div>
+        </div>
+        <div class="similar-row" id="similarRow"><div class="cart-empty" style="margin:0;">Загрузка...</div></div>
+        <div class="similar-hint">→ листайте вправо для просмотра всех ароматов ←</div>
+    </div>
+</section>
+
+<section class="contacts" id="contacts">
+    <div class="container">
+        <div class="section-head"><span class="section-tag">Мы на связи</span><h2>Контакты</h2></div>
+        <div class="contacts-grid">
+            <div class="contact-card"><i class="fas fa-phone"></i><div>Телефон</div><p><a href="tel:+79271036044">+7 (927) 103-60-44</a></p></div>
+            <div class="contact-card"><i class="fas fa-envelope"></i><div>Email</div><p><a href="mailto:corporate@soulcandles.ru">corporate@soulcandles.ru</a></p></div>
+            <div class="contact-card"><i class="fas fa-map-marker-alt"></i><div>Адрес</div><p>г. Саратов, ул. Горького 21,<br>магазин «Питер НМ»</p></div>
+            <div class="contact-card"><i class="fas fa-clock"></i><div>Режим работы</div><p>Ежедневно: 11:00 – 20:00</p></div>
+        </div>
+    </div>
+</section>
+
+<footer class="site-footer">
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-logo"><span>Soul</span> Candles</div>
+            <nav class="footer-nav">
+                <a href="catalog.html">Каталог</a>
+                <a href="Aromas.html">Ароматы</a>
+                <a href="index.html#about">Про меня</a>
+                <a href="corporate.html">Партнёрам</a>
+            </nav>
+            <div class="footer-social">
+                <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                <a href="#" aria-label="Telegram"><i class="fab fa-telegram-plane"></i></a>
+                <a href="#" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>© 2026 Все права защищены</div>
+            <div>Сделано с душой в Саратове</div>
+        </div>
+    </div>
+</footer>
+
+<div class="cart-overlay" id="cartOverlay"></div>
+<aside class="cart-drawer" id="cartDrawer">
+    <div class="cart-head"><h3>Корзина</h3><button class="cart-close" id="cartClose">&times;</button></div>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-foot">
+        <div class="cart-total"><span>Итого:</span><span id="cartTotal">0 ₽</span></div>
+        <div class="cart-msg" id="cartMsg"></div>
+        <button class="btn btn-dark" id="checkoutBtn">Оформить заказ</button>
+        <form class="checkout-form" id="checkoutForm">
+            <input type="text" id="coName" placeholder="Ваше имя" required>
+            <input type="tel" id="coPhone" placeholder="Телефон" required>
+            <button type="submit" class="btn btn-dark">Отправить</button>
+        </form>
+    </div>
+</aside>
+
+
+
+<script src="common.js"></script>
+
+<
+
+<script>
+// Единый скрипт для страницы товара с обычным select
+(function() {
+    'use strict';
+    
+    var PRODUCT_NAME = 'Свеча в стакане 200 мл';
+    var CATEGORY = 'candle';
+    var PRICE_MAP = {};
+    var priceEl = document.querySelector('[data-price-name]');
+    var addBtn = document.querySelector('.add-to-cart');
+    var aromaSel = document.getElementById('aromaSelect');
+    var wickSel = document.getElementById('wickSelect');
+    var currentPrice = 0;
+    var priceLoaded = false;
+    var productFound = null;
+    
+    // Загружаем цены
+    fetch('api_get_price.php', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.success) return;
+            
+            d.products.forEach(function(p) {
+                PRICE_MAP[p.name] = p;
+                PRICE_MAP[p.product_id] = p;
+                PRICE_MAP[p.id] = p;
+            });
+            
+            // Устанавливаем цену
+            if (priceEl) {
+                var name = priceEl.getAttribute('data-price-name');
+                var p = PRICE_MAP[name];
+                
+                if (!p) {
+                    for (var k in PRICE_MAP) {
+                        if (k.toLowerCase().indexOf(name.toLowerCase()) > -1) {
+                            p = PRICE_MAP[k];
+                            break;
+                        }
+                    }
+                }
+                
+                if (p) {
+                    productFound = p;
+                    currentPrice = parseInt(p.price);
+                    priceEl.textContent = currentPrice + ' ₽';
+                    priceLoaded = true;
+                    
+                    // Загружаем ароматы
+                    loadVariants(p.id, p.price, aromaSel, priceEl);
+                } else {
+                    priceEl.textContent = 'Цена уточняется';
+                }
+            }
+            
+            // Обработка кнопки "Добавить в корзину"
+            if (addBtn) {
+                addBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    if (!priceLoaded) {
+                        if (window.SoulCandles && window.SoulCandles.showToast) {
+                            window.SoulCandles.showToast('⏳ Цена загружается, подождите секунду...');
+                        }
+                        return;
+                    }
+                    
+                    var name = addBtn.getAttribute('data-product');
+                    var aroma = aromaSel ? aromaSel.value : '';
+                    var wick = wickSel ? wickSel.value : '';
+                    var img = document.getElementById('gImg')?.src || 'https://i.ibb.co/7tvN62BM/1.jpg';
+                    
+                    if (window.SoulCandles && window.SoulCandles.addToCart) {
+                        window.SoulCandles.addToCart({
+                            id: name + '-' + aroma + (wick ? '-' + wick : ''),
+                            name: name + ' (' + aroma + ')' + (wick ? ', ' + wick : ''),
+                            price: currentPrice,
+                            img: img
+                        });
+                    }
+                });
+            }
+            
+            // Загрузка похожих товаров
+            loadSimilarProducts();
+        })
+        .catch(function() {});
+    
+    // Загрузка ароматов
+    function loadVariants(pid, basePrice, sel, priceEl) {
+        if (!sel) return;
+        fetch('api_variants.php?product_id=' + pid)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success && d.variants && d.variants.length) {
+                    sel.innerHTML = '';
+                    d.variants.forEach(function(v) {
+                        var option = document.createElement('option');
+                        option.value = v.flavor_name;
+                        option.textContent = v.flavor_name;
+                        option.dataset.price = v.price || basePrice;
+                        sel.appendChild(option);
+                    });
+                    
+                    sel.onchange = function() {
+                        var o = sel.options[sel.selectedIndex];
+                        var newPrice = parseInt(o.dataset.price);
+                        if (newPrice) {
+                            currentPrice = newPrice;
+                            priceEl.textContent = newPrice + ' ₽';
+                        }
+                    };
+                    
+                    sel.onchange();
+                }
+            });
+    }
+    
+    // Загрузка похожих товаров
+    function loadSimilarProducts() {
+        var row = document.getElementById('similarRow');
+        if (!row) return;
+        
+        fetch('api_get_price.php', { cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.success || !d.products) return;
+                
+                var similar = d.products.filter(function(p) {
+                    return p.name !== PRODUCT_NAME && 
+                           (p.category === CATEGORY || !CATEGORY);
+                });
+                
+                if (similar.length === 0) {
+                    similar = d.products.filter(function(p) {
+                        return p.name !== PRODUCT_NAME;
+                    });
+                }
+                
+                similar = similar.slice(0, 6);
+                
+                if (similar.length === 0) {
+                    row.innerHTML = '<div style="text-align:center; padding:20px; color:#aaa;">Скоро здесь появятся новинки</div>';
+                    return;
+                }
+                
+                row.innerHTML = similar.map(function(p) {
+                    var img = p.img || 'https://i.ibb.co/7tvN62BM/1.jpg';
+                    var link = p.link || 'catalog.html';
+                    var price = p.price ? p.price + ' ₽' : 'Цена уточняется';
+                    
+                    return '<a class="sim-card" href="' + link + '">' +
+                        '<img src="' + img + '" alt="' + p.name + '" loading="lazy">' +
+                        '<div class="sim-body">' +
+                            '<div class="sim-name">' + p.name + '</div>' +
+                            '<div class="sim-price">' + price + '</div>' +
+                        '</div>' +
+                    '</a>';
+                }).join('');
+            })
+            .catch(function() {
+                row.innerHTML = '<div style="text-align:center; padding:20px; color:#aaa;">Не удалось загрузить похожие товары</div>';
+            });
+    }
+})();
+</script>
+
+</body>
+</html>
+

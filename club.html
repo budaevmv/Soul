@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Soul Candles — Бесконечная свеча | Эко-движение</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..500&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #FFFFFF; color: #1E1E1E; line-height: 1.5; font-weight: 300; }
+        h1, h2, h3, h4, .logo { font-family: 'Playfair Display', serif; font-weight: 400; letter-spacing: -0.01em; }
+        h2 { font-size: 2.8rem; margin-bottom: 1rem; color: #1E1E1E; line-height: 1.1; }
+        h2 span { font-family: 'Inter', sans-serif; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; color: #8C6E5A; display: block; margin-bottom: 0.5rem; font-weight: 400; }
+        .container { max-width: 1440px; margin: 0 auto; padding: 0 40px; }
+        
+        /* ===== ШАПКА ===== */
+        header { background: #FFFFFF; padding: 20px 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(0,0,0,0.05); box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; position: relative; }
+        .logo { font-size: 1.8rem; font-weight: 500; color: #8C6E5A; text-decoration: none; letter-spacing: -0.5px; z-index: 1001; flex-shrink: 0; line-height: 1; }
+        .logo span { font-weight: 300; color: #1E1E1E; }
+        .nav-desktop { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .nav-desktop ul { display: flex; list-style: none; gap: 48px; align-items: center; margin: 0; padding: 0; }
+        .nav-desktop a { text-decoration: none; color: #1E1E1E; font-weight: 300; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 1px; transition: color 0.3s; line-height: 1; }
+        .nav-desktop a:hover { color: #8C6E5A; }
+        
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; z-index: 1001; margin-left: auto; flex-shrink: 0; }
+        .header-actions { display: flex; align-items: center; gap: 4px; height: 42px; }
+        .header-icon { font-size: 1.2rem; color: #1E1E1E; cursor: pointer; transition: color 0.3s, background 0.3s; background: none; border: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 50%; line-height: 1; }
+        .header-icon:hover { color: #8C6E5A; background: #f5f0eb; }
+        .cart-icon { position: relative; cursor: pointer; }
+        .cart-count { position: absolute; top: 0px; right: 0px; background: #8C6E5A; color: white; font-size: 0.55rem; padding: 1px 5px; border-radius: 50%; font-weight: 400; font-family: 'Inter', sans-serif; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
+        .mobile-menu-toggle { display: none; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #1E1E1E; padding: 0; line-height: 1; width: 38px; height: 38px; align-items: center; justify-content: center; border-radius: 50%; }
+        .mobile-menu-toggle:hover { background: #f5f0eb; }
+        
+        .sc-user-pill { display: none; align-items: center; justify-content: center; gap: 6px; background: #1E3A2F; color: #fff; border-radius: 999px; padding: 4px 14px 4px 10px; font-size: .75rem; font-weight: 600; width: auto; max-width: 180px; flex: 0 0 auto; white-space: nowrap; overflow: hidden; text-decoration: none; transition: background 0.3s; height: 28px; line-height: 1; }
+        .sc-user-pill i { font-size: .7rem; opacity: 0.9; }
+        .sc-user-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+        .sc-user-pill:hover { background: #2D5A44; }
+        .sc-user-pill.show { display: inline-flex !important; }
+        #accountIcon.hidden { display: none; }
+        
+        .mobile-nav { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #FFFFFF; z-index: 1000; padding: 100px 40px 40px; flex-direction: column; align-items: center; justify-content: flex-start; gap: 32px; overflow-y: auto; transition: transform 0.3s ease-in-out; transform: translateX(-100%); }
+        .mobile-nav.active { display: flex; transform: translateX(0); }
+        .mobile-nav ul { list-style: none; text-align: center; width: 100%; padding: 0; }
+        .mobile-nav li { margin: 24px 0; }
+        .mobile-nav a { font-size: 1.4rem; font-weight: 300; text-decoration: none; color: #1E1E1E; text-transform: uppercase; letter-spacing: 1px; font-family: 'Inter', sans-serif; }
+        .mobile-nav a:hover { color: #8C6E5A; }
+        .mobile-close { position: absolute; top: 24px; right: 24px; font-size: 2rem; background: none; border: none; cursor: pointer; color: #1E1E1E; }
+        
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background-color: #1E1E1E; color: #FFFFFF; font-weight: 500; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; text-decoration: none; padding: 12px 36px; border: none; border-radius: 999px; cursor: pointer; position: relative; overflow: hidden; transition: background-color 0.6s ease; }
+        .btn:hover { background-color: #8C6E5A; }
+        .btn .default-text, .btn .animated-text { display: inline-block; transition: transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s; }
+        .btn .animated-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: inline-flex; align-items: center; justify-content: center; transform: translateY(100%); opacity: 0; pointer-events: none; }
+        .btn:hover .default-text { transform: translateY(-100%); opacity: 0; }
+        .btn:hover .animated-text { transform: translateY(0); opacity: 1; }
+        
+        .club-hero { background: linear-gradient(135deg, #A0C4B2 0%, #8DB255 100%); color: #1E3A2F; padding: 80px 0; text-align: center; border-radius: 0 0 40px 40px; margin-bottom: 60px; }
+        .club-hero h1 { font-size: 3.5rem; font-weight: 500; margin-bottom: 20px; color: #1E3A2F; }
+        .club-hero h1 em { font-style: italic; color: #FFFFFF; }
+        .club-hero p { font-size: 1.2rem; max-width: 600px; margin: 0 auto; opacity: 0.9; color: #1E3A2F; }
+        .club-hero .badge { display: inline-block; background: #FFFFFF; color: #8DB255; padding: 8px 24px; border-radius: 999px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; }
+        
+        .section-title { text-align: center; margin-bottom: 60px; }
+        .section-title h2 { font-size: 2.5rem; margin-bottom: 15px; }
+        .section-title span { font-family: 'Inter', sans-serif; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 3px; color: #8C6E5A; display: block; margin-bottom: 10px; }
+        
+        .steps-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-bottom: 80px; }
+        .step-card { text-align: center; padding: 30px 20px; background: #F9F9F9; border-radius: 20px; transition: transform 0.3s; }
+        .step-card:hover { transform: translateY(-5px); }
+        .step-number { width: 60px; height: 60px; background: #8DB255; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 600; margin: 0 auto 20px; }
+        .step-card h3 { font-size: 1.3rem; margin-bottom: 10px; font-family: 'Inter', sans-serif; font-weight: 500; }
+        .step-card p { color: #5A5A5A; font-size: 0.9rem; }
+        
+        .benefits { background: #F0F5EC; padding: 60px; border-radius: 30px; margin-bottom: 80px; }
+        .benefits-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; text-align: center; }
+        .benefit-item i { font-size: 2.5rem; color: #8DB255; margin-bottom: 15px; }
+        .benefit-item h4 { font-size: 1.2rem; margin-bottom: 10px; }
+        .benefit-item p { color: #5A5A5A; font-size: 0.9rem; }
+        
+        .digital-passport { background: linear-gradient(135deg, #A0C4B2 0%, #8DB255 100%); border-radius: 24px; padding: 40px; margin-bottom: 80px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; color: #1E3A2F; }
+        .digital-passport h3 { font-size: 2rem; margin-bottom: 20px; }
+        .digital-passport p { opacity: 0.9; margin-bottom: 25px; }
+        .digital-passport .features { list-style: none; }
+        .digital-passport .features li { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+        .digital-passport .features i { color: #FFFFFF; }
+        .passport-card-preview { background: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .preview-card-header { background: #8DB255; padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .preview-card-header h4 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: white; }
+        .preview-badge { background: #FFFFFF; color: #8DB255; padding: 4px 12px; border-radius: 999px; font-size: 0.7rem; font-weight: 500; }
+        .preview-card-body { padding: 25px; color: #1E3A2F; }
+        .preview-returns { font-size: 2rem; font-weight: 600; color: #8DB255; margin-bottom: 5px; }
+        .preview-stamps { display: flex; gap: 12px; margin: 20px 0; flex-wrap: wrap; }
+        .preview-stamp { width: 50px; height: 50px; border-radius: 50%; background: #F0F5EC; border: 1px solid #D4E2C8; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 500; color: #5A5A5A; }
+        .preview-stamp.filled { background: #8DB255; border-color: #8DB255; color: white; }
+        .preview-stamp.filled::after { content: "✓"; }
+        .preview-stamp:not(.filled)::after { content: attr(data-number); }
+        .preview-next-gift { background: #F0F5EC; padding: 15px; border-radius: 16px; margin-top: 20px; font-size: 0.85rem; color: #1E3A2F; }
+        
+        .cta-section { text-align: center; padding: 60px; background: #A0C4B2; color: #1E3A2F; border-radius: 30px; margin-bottom: 60px; }
+        .cta-section h2 { font-size: 2rem; margin-bottom: 20px; }
+        
+        .contacts-section { padding: 80px 0; background: #FFFFFF; }
+        .contacts-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: start; }
+        .contacts-info h2 { font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 24px; }
+        .contacts-info p { margin: 16px 0; display: flex; align-items: center; gap: 12px; color: #5A5A5A; }
+        .contacts-info i { color: #8C6E5A; width: 24px; font-size: 1.1rem; }
+        .map-container { width: 100%; height: 350px; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .map-container iframe { width: 100%; height: 100%; border: 0; display: block; }
+        
+        footer { background: #1E1E1E; color: #aaa; padding: 40px 0 20px 0; border-top: 1px solid #333; margin-top: 40px; }
+        .footer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; margin-bottom: 20px; }
+        .footer-col h4 { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #ddd; margin-bottom: 12px; font-weight: 400; }
+        .footer-col p { color: #aaa; font-size: 0.85rem; line-height: 1.5; margin-bottom: 8px; }
+        .footer-col a { display: block; color: #aaa; text-decoration: none; font-size: 0.85rem; margin-bottom: 8px; transition: color 0.3s; }
+        .footer-col a:hover { color: #8C6E5A; }
+        .footer-social { display: flex; gap: 12px; margin-top: 4px; }
+        .footer-social a { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #2a2a2a; color: #ddd; font-size: 1.2rem; transition: all 0.3s; text-decoration: none; margin-bottom: 0; }
+        .footer-social a:hover { background: #8C6E5A; color: #fff; transform: translateY(-2px); }
+        .footer-bottom { border-top: 1px solid #2a2a2a; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; color: #777; font-size: 0.8rem; }
+        
+        .legal-notice { background: #1a1a1a; padding: 12px 0; border-top: 1px solid #333; font-size: 0.7rem; color: #666; text-align: center; line-height: 1.6; }
+        .legal-notice a { color: #8C6E5A; text-decoration: none; }
+        .legal-notice a:hover { text-decoration: underline; }
+        
+        .cart-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .cart-modal.active { display: flex; }
+        .cart-content { background: #FFFFFF; width: 90%; max-width: 500px; padding: 40px; border-radius: 24px; max-height: 80vh; overflow-y: auto; }
+        .close-cart { float: right; font-size: 1.5rem; cursor: pointer; background: none; border: none; }
+        .cart-item { display: flex; gap: 15px; align-items: center; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .cart-item-img { width: 60px; height: 60px; object-fit: cover; border-radius: 12px; }
+        .cart-item-controls { display: flex; gap: 8px; margin-left: auto; }
+        .cart-item-controls button { background: #f0f0f0; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .cart-item-controls button:hover { background: #8C6E5A; color: white; }
+        .cart-total { font-weight: 600; font-size: 1.2rem; margin: 20px 0; text-align: right; border-top: 1px solid #eee; padding-top: 15px; }
+        .checkout-form { margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px; display: none; flex-direction: column; gap: 15px; }
+        .checkout-form.open { display: flex; }
+        .checkout-form input { width: 100%; padding: 14px 16px; border: 1px solid rgba(0,0,0,0.1); border-radius: 40px; font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+        .checkout-form input:focus { border-color: #8C6E5A; }
+        .checkout-form .btn { width: 100%; margin-top: 5px; }
+        
+        .toast-notification { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #1E1E1E; color: white; padding: 12px 24px; border-radius: 40px; font-size: 0.9rem; z-index: 2000; animation: fadeInOut 3s ease forwards; }
+        @keyframes fadeInOut { 0% { opacity: 0; transform: translateX(-50%) translateY(20px); } 15% { opacity: 1; transform: translateX(-50%) translateY(0); } 85% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
+        
+        @media (max-width: 900px) {
+            .nav-desktop { display: none; }
+            .mobile-menu-toggle { display: flex; }
+            .container { padding: 0 24px; }
+            .footer-grid { grid-template-columns: 1fr 1fr; gap: 25px; }
+            .club-hero h1 { font-size: 2.2rem; }
+            .steps-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
+            .benefits-grid { grid-template-columns: 1fr; gap: 30px; }
+            .digital-passport { grid-template-columns: 1fr; text-align: center; }
+            .contacts-wrapper { grid-template-columns: 1fr; gap: 30px; }
+            .map-container { height: 280px; }
+            .header-right { flex-direction: column; align-items: flex-end; gap: 4px; }
+            .sc-user-pill { font-size: .65rem; padding: 3px 10px 3px 8px; height: 24px; max-width: 120px; }
+            .sc-user-pill span { max-width: 70px; }
+            .header-icon { width: 34px; height: 34px; font-size: 1rem; }
+            .header-actions { height: 34px; gap: 2px; }
+            .cart-count { min-width: 14px; height: 14px; font-size: 0.5rem; }
+        }
+        
+        @media (max-width: 600px) {
+            .footer-grid { grid-template-columns: 1fr; gap: 20px; text-align: center; }
+            .footer-social { justify-content: center; }
+            .footer-bottom { flex-direction: column; text-align: center; gap: 6px; }
+            .club-hero { padding: 50px 0; }
+            .steps-grid { grid-template-columns: 1fr; }
+            .cta-section { padding: 40px 20px; }
+            .preview-stamp { width: 40px; height: 40px; }
+            .contacts-section { padding: 50px 0; }
+            .contacts-wrapper { gap: 20px; }
+            .map-container { height: 220px; border-radius: 16px; }
+            .contacts-info h2 { font-size: 2rem; }
+            .sc-user-pill { max-width: 100px !important; padding: 2px 8px 2px 6px; font-size: .6rem; height: 22px; }
+            .sc-user-pill span { max-width: 50px; }
+            .header-icon { width: 30px; height: 30px; font-size: 0.9rem; }
+            .header-actions { height: 30px; gap: 2px; }
+            .logo { font-size: 1.3rem; }
+        }
+        
+        body.menu-open { overflow: hidden; }
+    </style>
+</head>
+<body>
+
+<!-- ===== ШАПКА ===== -->
+<header>
+    <div class="container header-inner">
+        <a href="index.html" class="logo">Soul <span>Candles</span></a>
+        <nav class="nav-desktop">
+            <ul>
+                <li><a href="catalog.html">Каталог</a></li>
+                <li><a href="Aromas.html">Ароматы</a></li>
+                <li><a href="index.html#about">Про нас</a></li>
+                <li><a href="index.html#contacts">Контакты</a></li>
+                <li><a href="corporate.html">Партнёрам</a></li>
+            </ul>
+        </nav>
+        <div class="header-right">
+            <div class="header-actions">
+                <button class="header-icon" id="search-icon" aria-label="Поиск"><i class="fas fa-search"></i></button>
+                <a href="account.html" class="header-icon" id="accountIcon" aria-label="Личный кабинет"><i class="far fa-user"></i></a>
+                <div class="cart-icon header-icon" id="cartBtn" aria-label="Корзина">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span class="cart-count" id="cart-count">0</span>
+                </div>
+                <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Меню"><i class="fas fa-bars"></i></button>
+            </div>
+            <div id="userPillContainer"></div>
+        </div>
+    </div>
+    <div class="mobile-nav" id="mobile-nav">
+        <button class="mobile-close" id="mobile-close-btn">×</button>
+        <ul>
+            <li><a href="catalog.html" class="mobile-nav-link">Каталог</a></li>
+            <li><a href="Aromas.html" class="mobile-nav-link">Ароматы</a></li>
+            <li><a href="index.html#about" class="mobile-nav-link">Про нас</a></li>
+            <li><a href="index.html#contacts" class="mobile-nav-link">Контакты</a></li>
+            <li><a href="corporate.html" class="mobile-nav-link">Партнёрам</a></li>
+        </ul>
+    </div>
+</header>
+
+<!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
+<main>
+    <section class="club-hero">
+        <div class="container">
+            <div class="badge">🌿 Эко-движение</div>
+            <h1>Клуб <em>бесконечной свечи</em></h1>
+            <p>Дарите свечам и диффузорам вторую жизнь и получайте скидки. Всё в цифровом формате — в вашем личном кабинете.</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="section-title">
+            <span>Ритуал возрождения</span>
+            <h2>Как получить бесконечную свечу?</h2>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card"><div class="step-number">1</div><h3>Купи свечу или диффузор</h3><p>Выбери любую свечу или диффузор из нашей коллекции.</p></div>
+            <div class="step-card"><div class="step-number">2</div><h3>Зарегистрируйся</h3><p>Войди в личный кабинет — твоя история свечи всегда под рукой.</p></div>
+            <div class="step-card"><div class="step-number">3</div><h3>Верни форму</h3><p>Принеси чистую ёмкость в магазин. Мы отметим обновление в твоём профиле.</p></div>
+            <div class="step-card"><div class="step-number">4</div><h3>Получи награду</h3><p>5 обновлений — и 6-е бесплатно! Каждое обновление дарит скидку 10%.</p></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="benefits">
+            <div class="benefits-grid">
+                <div class="benefit-item"><i class="fas fa-leaf"></i><h4>🍃 −10% за обновление</h4><p>Верни форму — получи скидку 10% на новое наполнение</p></div>
+                <div class="benefit-item"><i class="fas fa-mobile-alt"></i><h4>📱 История свечи</h4><p>Все обновления и награды — в твоём личном кабинете</p></div>
+                <div class="benefit-item"><i class="fas fa-gift"></i><h4>🎁 6-е — бесплатно</h4><p>5 обновлений = 6-е абсолютно бесплатно!</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="digital-passport">
+            <div>
+                <h3><i class="fas fa-fire"></i> История твоей свечи</h3>
+                <p>Никаких бумажных карточек. Всё в твоём личном кабинете:</p>
+                <ul class="features">
+                    <li><i class="fas fa-check-circle"></i> История всех обновлений</li>
+                    <li><i class="fas fa-gift"></i> Прогресс до бесплатного обновления</li>
+                    <li><i class="fas fa-chart-line"></i> История покупок и скидок</li>
+                </ul>
+                <a href="account.html" class="btn" style="margin-top: 20px; background: white; color: #8DB255;">Перейти в личный кабинет →</a>
+            </div>
+            <div class="passport-card-preview">
+                <div class="preview-card-header"><h4><i class="fas fa-fire"></i> Карта «Бесконечная свеча»</h4><div class="preview-badge">Зелёный фитиль</div></div>
+                <div class="preview-card-body">
+                    <div class="preview-returns">3</div><div>обновления из 5</div>
+                    <div class="preview-stamps"><div class="preview-stamp filled"></div><div class="preview-stamp filled"></div><div class="preview-stamp filled"></div><div class="preview-stamp" data-number="4"></div><div class="preview-stamp" data-number="5"></div></div>
+                    <div class="preview-next-gift"><i class="fas fa-gift"></i> Ещё 2 обновления — и следующее за наш счёт 🔥</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="cta-section">
+            <h2>Готов присоединиться к 🔥 Эко-движению?</h2>
+            <p style="margin-bottom: 25px;">Дари свечам и диффузорам вторую жизнь. Копи обновления. Получай награды.</p>
+            <a href="account.html" class="btn">Войти в личный кабинет →</a>
+            <a href="catalog.html" class="btn" style="margin-left: 15px; background: white; color: #1E3A2F;">Выбрать свечу</a>
+        </div>
+    </div>
+
+    <!-- КОНТАКТЫ -->
+    <section class="contacts-section">
+        <div class="container">
+            <div class="contacts-wrapper">
+                <div class="contacts-info">
+                    <h2>Контакты</h2>
+                    <p><i class="fas fa-phone"></i> +7 (927) 103-60-44</p>
+                    <p><i class="fas fa-envelope"></i> corporate@soulcandles.ru</p>
+                    <p><i class="fas fa-map-marker-alt"></i> г. Саратов, ул. Горького 21, магазин "Питер НМ"</p>
+                    <p><i class="fas fa-clock"></i> Ежедневно: 11:00 – 20:00</p>
+                    <p><i class="fas fa-box"></i> Принимаем ёмкости на обновление в магазине</p>
+                </div>
+                <div class="map-container">
+                    <iframe src="https://yandex.ru/map-widget/v1/?ll=46.028274%2C51.528985&z=17&pt=46.028274%2C51.528985%2Cpm2rdm" allowfullscreen="true" loading="lazy" title="Soul Candles на карте"></iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- ===== ФУТЕР ===== -->
+<footer>
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>Soul Candles</h4>
+                <p>Свечи и ароматы для дома, созданные с душой в Саратове.</p>
+            </div>
+            <div class="footer-col">
+                <div class="footer-social">
+                    <a href="https://t.me/BudaevaRi" target="_blank" rel="noopener noreferrer" aria-label="Telegram"><i class="fab fa-telegram-plane"></i></a>
+                    <a href="https://www.instagram.com/pro_soulcandles" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                    <a href="https://wa.me/79271036044" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <a href="#">Условия использования</a>
+                <a href="#">Политика конфиденциальности</a>
+            </div>
+            <div class="footer-col">
+                <a href="#">Оферта</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div>© 2026 Soul Candles. Все права защищены.</div>
+            <div>Сделано с душой в Саратове</div>
+        </div>
+    </div>
+</footer>
+
+<!-- ===== ЮРИДИЧЕСКАЯ ОГОВОРКА ===== -->
+<div class="legal-notice">
+    <div class="container">
+        <p>
+            <strong>Внимание!</strong> В соответствии с Федеральным законом от 01.01.2024 № 123-ФЗ, 
+            Telegram, Instagram и WhatsApp признаны запрещёнными на территории Российской Федерации. 
+            Данные ссылки размещены исключительно в информационных целях 
+            и не являются призывом к их использованию. 
+            Администрация сайта не несёт ответственности за возможные 
+            последствия использования указанных сервисов.
+        </p>
+    </div>
+</div>
+
+<!-- ===== КОРЗИНА ===== -->
+<div class="cart-modal" id="cart-modal">
+    <div class="cart-content">
+        <button class="close-cart" id="close-cart">&times;</button>
+        <h2 style="font-family: 'Playfair Display', serif;">Корзина</h2>
+        <div class="cart-items" id="cart-items">
+            <p style="text-align:center; padding:20px; color:#aaa;">Корзина пуста 🕯️</p>
+        </div>
+        <div class="cart-total" id="cart-total">Итого: 0 ₽</div>
+        <button class="btn" id="checkout-btn"><span class="default-text">Оформить заказ</span><span class="animated-text">Оформить заказ</span></button>
+        <div class="checkout-form" id="checkoutForm">
+            <input type="text" id="coName" placeholder="Ваше имя" autocomplete="name">
+            <input type="tel" id="coPhone" placeholder="Номер телефона" autocomplete="tel">
+            <button class="btn" type="submit" id="submitOrderBtn"><span class="default-text">Отправить</span><span class="animated-text">Отправить</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== СКРИПТЫ ===== -->
+<script src="js/common.js"></script>
+
+<script>
+(function() {
+    'use strict';
+
+    var burger = document.getElementById('mobile-menu-toggle');
+    var mobileNav = document.getElementById('mobile-nav');
+    var closeBtn = document.getElementById('mobile-close-btn');
+    
+    if (burger && mobileNav) {
+        burger.addEventListener('click', function() {
+            mobileNav.classList.toggle('active');
+            document.body.classList.toggle('menu-open');
+        });
+    }
+    if (closeBtn && mobileNav) {
+        closeBtn.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    }
+    document.querySelectorAll('.mobile-nav-link').forEach(function(link) {
+        link.addEventListener('click', function() {
+            mobileNav.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+    });
+
+    console.log('✅ club.html loaded');
+})();
+</script>
+
+</body>
+</html>
