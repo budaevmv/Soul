@@ -17,16 +17,34 @@ sealed class PlanItem(val start: Long, val end: Long, val file: String) {
 /** Раскладывает пункты по поездкам и придумывает поездке название. */
 class TripGrouping(private val ref: ReferenceData) {
 
-    /** Пункты, между которыми больше 3 суток, считаем разными поездками. */
+    /**
+     * Пункты, между которыми больше 3 суток, считаем разными поездками — кроме случая, когда
+     * следующий пункт продолжает маршрут из того же города, а домой мы ещё не вернулись
+     * (например, неделя отдыха в Куала-Лумпуре между прилётом и обратным рейсом).
+     */
     fun cluster(items: List<PlanItem>): List<List<PlanItem>> {
         val groups = mutableListOf<MutableList<PlanItem>>()
         var end = Long.MIN_VALUE
         for (item in items.sortedBy { it.start }) {
-            if (groups.isEmpty() || item.start > end + GAP) groups += mutableListOf<PlanItem>()
+            val gap = item.start - end
+            val sameTrip = groups.isNotEmpty() && (gap <= GAP || (gap <= MAX_STAY && continuesJourney(groups.last(), item)))
+            if (!sameTrip) groups += mutableListOf<PlanItem>()
             groups.last() += item
             end = maxOf(end, item.end)
         }
         return groups
+    }
+
+    private fun continuesJourney(group: List<PlanItem>, next: PlanItem): Boolean {
+        val moves = group.filterIsInstance<PlanItem.Move>().map { it.flight }.sortedBy { it.departureMillis }
+        val last = moves.lastOrNull() ?: return false
+        val home = city(moves.first(), from = true)
+        val here = city(last, from = false)
+        if (here == home) return false
+        return when (next) {
+            is PlanItem.Move -> city(next.flight, from = true) == here
+            is PlanItem.Hotel -> ref.citiesIn(next.stay.address + " " + next.stay.name).firstOrNull()?.city.let { it == null || it == here }
+        }
     }
 
     /**
@@ -67,5 +85,7 @@ class TripGrouping(private val ref: ReferenceData) {
 
     companion object {
         const val GAP = 3L * 24 * 3_600_000L
+        /** Дольше месяца на одном месте — уже не одна поездка. */
+        const val MAX_STAY = 31L * 24 * 3_600_000L
     }
 }

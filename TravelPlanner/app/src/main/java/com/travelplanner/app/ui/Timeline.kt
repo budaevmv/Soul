@@ -44,7 +44,8 @@ sealed class TimelineEntry(val at: Long, val zone: String, val tripId: Long) {
     class GoToAirport(val flight: Flight) : TimelineEntry(flight.departureMillis - flight.remindMinutes * 60_000L, flight.departureZone, flight.tripId)
     class FlightEntry(val flight: Flight) : TimelineEntry(flight.departureMillis, flight.departureZone, flight.tripId)
     class Transfer(val flight: Flight, val stay: Stay) : TimelineEntry((flight.arrivalMillis ?: flight.departureMillis) + 1, flight.arrivalZone, flight.tripId)
-    class CheckIn(val stay: Stay) : TimelineEntry(stay.checkInMillis, stay.zone, stay.tripId)
+    /** Заселение показываем не раньше прилёта: если прилетаем после 14:00 — сразу после прилёта. */
+    class CheckIn(val stay: Stay, at: Long = stay.checkInMillis) : TimelineEntry(at, stay.zone, stay.tripId)
     class CheckOut(val stay: Stay) : TimelineEntry(stay.checkOutMillis, stay.zone, stay.tripId)
 }
 
@@ -65,7 +66,11 @@ object Timeline {
             }
         }
         stays.forEach { s ->
-            list += TimelineEntry.CheckIn(s)
+            val arrival = flights.filter { it.tripId == s.tripId }
+                .mapNotNull { it.arrivalMillis }
+                .filter { it > s.checkInMillis && it < s.checkOutMillis && it - s.checkInMillis < 24 * 3_600_000L }
+                .maxOrNull()
+            list += TimelineEntry.CheckIn(s, arrival?.plus(2) ?: s.checkInMillis)
             list += TimelineEntry.CheckOut(s)
         }
         return list.sortedBy { it.at }
@@ -189,7 +194,10 @@ fun TimelineCard(
                 is TimelineEntry.CheckIn -> {
                     val s = entry.stay
                     Column(Modifier.clickable { onEditStay(s) }) {
-                        Header(Icons.Default.Hotel, Format.time(s.checkInMillis, s.zone), "Заселение: ${s.name}")
+                        Header(Icons.Default.Hotel, Format.time(entry.at, s.zone), "Заселение: ${s.name}")
+                        if (entry.at != s.checkInMillis) {
+                            Text("Заселение возможно с ${Format.time(s.checkInMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
+                        }
                         if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium)
                         Text(
                             "До ${Format.dateTime(s.checkOutMillis, s.zone)}" + (s.bookingRef.takeIf { it.isNotBlank() }?.let { " · бронь $it" } ?: ""),

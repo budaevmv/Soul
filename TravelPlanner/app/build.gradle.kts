@@ -78,5 +78,6 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     project.findProperty("ticket.pdf")?.let { systemProperty("ticket.pdf", it) }
+    project.findProperty("tickets.dir")?.let { systemProperty("tickets.dir", it) }
     testLogging { showStandardStreams = true }
 }

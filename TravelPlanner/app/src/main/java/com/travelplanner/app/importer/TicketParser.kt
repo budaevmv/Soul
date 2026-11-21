@@ -483,6 +483,8 @@ class TicketParser(
 
     private fun normalize(raw: String): String {
         var t = raw.replace(' ', ' ').replace(' ', ' ').replace(' ', ' ')
+        // «SheremetyevoSVO» -> «Sheremetyevo SVO»: код аэропорта приклеен к названию
+        t = GLUED_IATA.replace(t) { "${it.groupValues[1]} ${it.groupValues[2]}" }
         // Кириллические коды российских перевозчиков во внутренних билетах
         for ((cyr, lat) in CYRILLIC_CARRIERS) {
             t = Regex("(?<![А-ЯЁA-Z0-9])$cyr(?=\\s?-?\\s?\\d{2,4}(?!\\d))").replace(t, lat)
@@ -537,6 +539,7 @@ class TicketParser(
             "JANUARY", "JAN", "FEBRUARY", "FEB", "MARCH", "MAR", "APRIL", "APR", "MAY", "JUNE", "JUN", "JULY", "JUL",
             "AUGUST", "AUG", "SEPTEMBER", "SEP", "SEPT", "OCTOBER", "OCT", "NOVEMBER", "NOV", "DECEMBER", "DEC",
         )
+        private val GLUED_IATA = Regex("([a-zа-яё])([A-Z]{3})(?![A-Za-z])")
         private val TRAIN_MARKER = Regex("ПОЕЗД|TRAIN")
         private val CAR_MARKER = Regex("ВАГОН|\\bCAR\\b|COACH")
         private val TRAIN_NO = Regex(

@@ -86,4 +86,43 @@ class TripAssemblyTest {
         val (groups, _) = assemble(docs)
         assertEquals(2, groups.size)
     }
+
+    /**
+     * Полная сборка из папки с настоящими PDF: ./gradlew testDebugUnitTest -Ptickets.dir=/папка
+     * Без параметра пропускается.
+     */
+    @Test
+    fun realFolder() {
+        val dir = System.getProperty("tickets.dir")
+        org.junit.Assume.assumeTrue(!dir.isNullOrBlank())
+        val p = parser()
+        val files = File(dir).listFiles { f -> f.extension.equals("pdf", true) }!!.sortedBy { it.name }
+        val seen = mutableSetOf<String>()
+        val docs = files.mapNotNull { f ->
+            val hash = java.security.MessageDigest.getInstance("SHA-256").digest(f.readBytes()).joinToString("") { "%02x".format(it) }
+            if (!seen.add(hash)) { println("FILE ${f.name}: дубликат файла"); return@mapNotNull null }
+            val text = org.apache.pdfbox.pdmodel.PDDocument.load(f).use { d ->
+                org.apache.pdfbox.text.PDFTextStripper().apply { sortByPosition = true }.getText(d)
+            }
+            p.parse(text).also { println("FILE ${f.name}: $it") }
+        }
+        val (groups, dup) = assemble(docs)
+        println("DUPLICATE ITEMS: $dup")
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
+        fun t(ms: Long, z: String) = java.time.Instant.ofEpochMilli(ms).atZone(ZoneId.of(z)).format(fmt)
+        groups.forEach { g ->
+            println("TRIP: ${TripGrouping(ref).title(g, ZoneId.of("Europe/Moscow"))}")
+            g.sortedBy { it.start }.forEach {
+                when (it) {
+                    is PlanItem.Move -> with(it.flight) {
+                        println("  ${if (isTrain) "TRAIN $flightNumber $fromName → $toName" else "FLIGHT $airlineCode $flightNumber $fromIata → $toIata"}" +
+                            "  ${t(departureMillis, departureZone)} → ${arrivalMillis?.let { a -> t(a, arrivalZone) }}  term=$departureTerminal seat=$seat car=$car ref=$bookingRef")
+                    }
+                    is PlanItem.Hotel -> with(it.stay) {
+                        println("  HOTEL $name | $address | ${t(checkInMillis, zone)} → ${t(checkOutMillis, zone)} | $phone | $bookingRef")
+                    }
+                }
+            }
+        }
+    }
 }
