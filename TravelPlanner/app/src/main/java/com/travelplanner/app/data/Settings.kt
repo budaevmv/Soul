@@ -21,6 +21,11 @@ class Settings(context: Context) {
         set(value) = prefs.edit().putBoolean("calendar_sync", value).apply()
 
     /** Напоминать об открытии онлайн-регистрации. */
+    /** Версия логики событий календаря: при обновлении приложения события пересоздаются один раз. */
+    var calendarLogicVersion: Int
+        get() = prefs.getInt("calendar_logic_version", 1)
+        set(value) = prefs.edit().putInt("calendar_logic_version", value).apply()
+
     var checkinReminder: Boolean
         get() = prefs.getBoolean("checkin_reminder", true)
         set(value) = prefs.edit().putBoolean("checkin_reminder", value).apply()
