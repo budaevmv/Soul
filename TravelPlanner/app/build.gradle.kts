@@ -23,7 +23,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             // Реальные телефоны — ARM; x86 нужен только эмуляторам
-            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+            ndk { abiFilters += listOf("arm64-v8a") }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Для установки «из коробки» release подписывается debug-ключом.
             signingConfig = signingConfigs.getByName("debug")
@@ -66,8 +66,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
     // Распознавание текста и штрихкодов посадочных — работает офлайн, на устройстве
-    implementation("com.google.mlkit:text-recognition:16.0.1")
-    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    // Модели ML Kit берутся из Google Play Services (не раздувают APK)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
     // Извлечение текста из PDF-маршрутных квитанций (включая кириллицу)
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
