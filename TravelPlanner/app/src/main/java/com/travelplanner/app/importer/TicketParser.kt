@@ -60,7 +60,7 @@ class TicketParser(
         return ParsedDocument(
             flights = flights,
             stay = parseStay(text, upper, hasFlights = flights.isNotEmpty()),
-            bookingRef = BOOKING_REF.find(upper)?.groupValues?.get(1),
+            bookingRef = findBookingRef(upper),
             passenger = findPassenger(text),
         )
     }
@@ -212,8 +212,36 @@ class TicketParser(
     private fun lineAfter(text: String, regex: Regex): String? =
         regex.find(text)?.groupValues?.get(1)?.trim()?.trim(':', ' ', '-')?.takeIf { it.length >= 3 }
 
-    private fun findPassenger(text: String): String? =
-        PASSENGER.find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.length >= 4 }
+    /**
+     * Код бронирования (PNR). В квитанциях он часто стоит не сразу за подписью, а в соседней
+     * колонке таблицы, поэтому ищем похожий на PNR токен в окне после ключевых слов.
+     * Приоритет: буквы+цифры (DRLC1L) > «несловарные» буквы (XKQLMN) > любой номер брони.
+     */
+    private fun findBookingRef(upper: String): String? {
+        val windows = BOOKING_KEYWORD.findAll(upper).map { m ->
+            upper.substring(m.range.last + 1, minOf(upper.length, m.range.last + 1 + 300))
+        }.toList()
+        for (w in windows) {
+            PNR_TOKEN.findAll(w).map { it.value }.firstOrNull { t -> t.any(Char::isDigit) && t.any(Char::isLetter) }?.let { return it }
+        }
+        for (w in windows) {
+            PNR_TOKEN.findAll(w).map { it.value }.firstOrNull { t -> t.all(Char::isLetter) && t.count { it in VOWELS } <= 1 }?.let { return it }
+        }
+        return BOOKING_REF.findAll(upper).map { it.groupValues[1] }.firstOrNull { t ->
+            t.any(Char::isDigit) || t.count { it in VOWELS } <= 1
+        }
+    }
+
+    /** Имя пассажира — первая строка из 2–4 слов ЗАГЛАВНЫМИ буквами после подписи «Пассажир / ФИО». */
+    private fun findPassenger(text: String): String? {
+        for (m in PASSENGER_KEYWORD.findAll(text)) {
+            val window = text.substring(m.range.last + 1, minOf(text.length, m.range.last + 1 + 400))
+            PASSENGER_NAME.findAll(window).map { it.value.trim() }
+                .firstOrNull { name -> name.split(' ', '/').none { it in NAME_STOP_WORDS } }
+                ?.let { return it }
+        }
+        return null
+    }
 
     private fun normalize(raw: String): String {
         var t = raw.replace(' ', ' ').replace(' ', ' ').replace(' ', ' ')
@@ -241,8 +269,16 @@ class TicketParser(
             "(?:BOOKING\\s*(?:REFERENCE|REF\\.?|CODE|NUMBER)?|PNR|CONFIRMATION\\s*(?:NUMBER|CODE)?|" +
                 "КОД\\s*БРОНИ(?:РОВАНИЯ)?|НОМЕР\\s*БРОНИ(?:РОВАНИЯ)?|НОМЕР\\s*ЗАКАЗА|БРОНЬ)\\s*[:#№]?\\s*([A-ZА-Я0-9]{5,10})(?![A-ZА-Я0-9])",
         )
-        private val PASSENGER = Regex(
-            "(?iu)(?:passenger(?:\\s*name)?|пассажир|фамилия,?\\s*имя|name of passenger)\\s*[:]?\\s*([A-ZА-ЯЁ][A-ZА-ЯЁa-zа-яё/ .\\-]{3,40})",
+        private val BOOKING_KEYWORD = Regex(
+            "BOOKING|PNR|CONFIRMATION|КОД\\s*БРОНИ|НОМЕР\\s*БРОНИ|ОНЛАЙН-РЕГИСТРАЦИ|CHECK-IN:|БРОНЬ",
+        )
+        private val PNR_TOKEN = Regex("(?<![A-ZА-ЯЁ0-9])[A-ZА-ЯЁ0-9]{6}(?![A-ZА-ЯЁ0-9])")
+        private const val VOWELS = "AEIOUYАЕЁИОУЫЭЮЯ"
+        private val PASSENGER_KEYWORD = Regex("(?iu)passenger|пассажир|фамилия,?\\s*имя|\\bФИО\\b|клиент")
+        private val PASSENGER_NAME = Regex("(?<![A-Za-zА-Яа-яЁё])[A-ZА-ЯЁ]{2,}(?:[ /]{1,2}[A-ZА-ЯЁ]{2,}){1,3}(?![A-Za-zА-Яа-яЁё])")
+        private val NAME_STOP_WORDS = setOf(
+            "PASSPORT", "ORDER", "NUMBER", "TICKET", "BOOKING", "FLIGHT", "CLASS", "ECONOMY", "BUSINESS", "DATE",
+            "ELECTRONIC", "ITINERARY", "RECEIPT", "SEAT", "FROM", "TO", "DEP", "ARR", "RUB", "USD", "EUR", "РФ", "ФИО",
         )
         private val STAY_KEYWORD = Regex("HOTEL|ОТЕЛ|ГОСТИНИЦ|ЗАЕЗД|CHECK-IN|CHECK IN|APARTMENT|АПАРТАМЕНТ|HOSTEL|ХОСТЕЛ|ПРОЖИВАНИ|ACCOMMODATION|AIRBNB|BOOKING\\.COM")
         private val STRONG_STAY_KEYWORD = Regex("HOTEL|ОТЕЛ|ГОСТИНИЦ|ЗАЕЗД|APARTMENT|АПАРТАМЕНТ|HOSTEL|ХОСТЕЛ|ПРОЖИВАНИ|ACCOMMODATION|AIRBNB")

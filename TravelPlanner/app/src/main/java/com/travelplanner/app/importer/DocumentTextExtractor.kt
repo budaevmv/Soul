@@ -36,7 +36,10 @@ class DocumentTextExtractor(private val context: Context) {
 
     private suspend fun fromPdf(file: File): ExtractedContent {
         val text = runCatching {
-            PDDocument.load(file).use { doc -> PDFTextStripper().getText(doc) }
+            PDDocument.load(file).use { doc ->
+                // Сортировка по положению на странице: таблицы читаются строками, а не в порядке записи в файле
+                PDFTextStripper().apply { sortByPosition = true }.getText(doc)
+            }
         }.getOrDefault("")
 
         val barcodes = mutableListOf<String>()

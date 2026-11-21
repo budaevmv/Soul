@@ -72,4 +72,11 @@ dependencies {
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 
     testImplementation("junit:junit:4.13.2")
+    // Для проверки разбора настоящих PDF на JVM (тот же PDFBox, что и в приложении)
+    testImplementation("org.apache.pdfbox:pdfbox:2.0.32")
+}
+
+tasks.withType<Test>().configureEach {
+    project.findProperty("ticket.pdf")?.let { systemProperty("ticket.pdf", it) }
+    testLogging { showStandardStreams = true }
 }

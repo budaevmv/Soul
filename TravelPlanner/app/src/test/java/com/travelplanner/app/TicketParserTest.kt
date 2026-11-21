@@ -83,6 +83,73 @@ class TicketParserTest {
         assertEquals("ЖЩ4К2Р", doc.bookingRef)
     }
 
+    /** Квитанция агентства на рейс «Победы» (формат с таблицей; данные вымышленные). */
+    @Test
+    fun pobedaAgencyItinerary() {
+        val text = """
+                                                  Electronic ticket
+                                                  Дата оформления заказа: 20.11.2026
+             Пассажир                Паспорт РФ          Номер заказа          Номер электронного билета
+             Passenger               Passport            Order number          E-ticket number
+             IVANOV PETR
+             SERGEEVICH              1234567890          40000001              4250000000001
+             Saratov → Moscow        Отправление         Местное время                       Прибытие
+             1 h 50 min              Departure           Local time                          Arrival
+             DP-6864 Победа          Saratov             22:30           23:20               Moscow
+             Номер для онлайн-регистрации / Check-in:
+                                     Gagarin GSV         21 NOV 2026     21 NOV 2026         Sheremetyevo SVO
+             QWRT2K
+             Багаж / Baggage allowance: 10 kg
+            Маршрутная квитанция электронного билета                                          Победа
+            Клиент
+                                                                                    Код бронирования
+            ФИО                    Дата рождения    Документ      Номер билета      Категория
+            IVANOV PETR            01.01.1990       1234567890    4250000000001     Взрослый      QWRT2K
+              Саратов           Москва
+              Номер рейса       Вылет                     В пути         Прилёт
+              DP6864            21 ноября 2026 22:30      01 ч 50 мин    21 ноября 2026 23:20
+                                Саратов                                  Москва
+                                GSV | Гагарин                            SVO | Шереметьево | D
+        """.trimIndent()
+        val doc = parser().parse(text)
+        assertEquals(1, doc.flights.size)
+        val f = doc.flights.single()
+        assertEquals("DP", f.airlineCode)
+        assertEquals("6864", f.number)
+        assertEquals("GSV", f.from)
+        assertEquals("SVO", f.to)
+        assertEquals(LocalDate.of(2026, 11, 21), f.depDate)
+        assertEquals(LocalTime.of(22, 30), f.depTime)
+        assertEquals(LocalTime.of(23, 20), f.arrTime)
+        assertEquals(LocalDate.of(2026, 11, 21), f.arrDate)
+        assertEquals("QWRT2K", doc.bookingRef)
+        assertEquals("IVANOV PETR", doc.passenger)
+        // Саратов живёт по UTC+4
+        assertEquals("Europe/Saratov", ref.zoneFor("GSV").id)
+    }
+
+    /**
+     * Проверка на настоящем PDF: ./gradlew testDebugUnitTest -Pticket.pdf=/путь/к/билету.pdf
+     * Без параметра тест пропускается (личные билеты в репозиторий не кладём).
+     */
+    @Test
+    fun realPdfFromProperty() {
+        val path = System.getProperty("ticket.pdf")
+        org.junit.Assume.assumeTrue(!path.isNullOrBlank())
+        val text = org.apache.pdfbox.pdmodel.PDDocument.load(File(path)).use { d ->
+            org.apache.pdfbox.text.PDFTextStripper().apply { sortByPosition = true }.getText(d)
+        }
+        val doc = parser().parse(text)
+        println("PARSED: $doc")
+        assertTrue("рейсы не найдены", doc.flights.isNotEmpty())
+        doc.flights.forEach { f ->
+            assertNotNull("from", f.from)
+            assertNotNull("to", f.to)
+            assertNotNull("date", f.depDate)
+            assertNotNull("time", f.depTime)
+        }
+    }
+
     @Test
     fun overnightArrivalMovesToNextDay() {
         val text = "Flight EK 132 DME - DXB 30/12/2026 23:50 06:05"
