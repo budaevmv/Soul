@@ -12,6 +12,7 @@ class TripRepository(
     private val calendar: CalendarSync,
     private val settings: Settings,
     private val itinerary: Itinerary,
+    private val travelTime: TravelTime? = null,
 ) {
     fun trips() = db.trips().observeAll()
     fun trip(id: Long) = db.trips().observe(id)
@@ -47,8 +48,9 @@ class TripRepository(
     /** Пересчитывает напоминания и события календаря перелётов поездки с учётом пересадок. */
     suspend fun refreshTrip(tripId: Long) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        val flights = db.flights().forTrip(tripId)
         val stays = db.stays().forTrip(tripId)
+        adjustTrainLeaveTimes(db.flights().forTrip(tripId), stays)
+        val flights = db.flights().forTrip(tripId)
         flights.forEach { f ->
             val connection = itinerary.connectionFrom(f, flights, stays) != null
             if (settings.calendarSync) {
@@ -101,6 +103,23 @@ class TripRepository(
                 flights.forEach { f -> scheduler.scheduleFlight(f, now, itinerary.connectionFrom(f, flights, stays) != null) }
                 stays.forEach { s -> scheduler.scheduleStay(s, now, itinerary.leaveStayAt(s, flights, stays)) }
             }
+        }
+    }
+
+    /**
+     * Поезд из города, где живём в отеле: «пора выезжать» = дорога от отеля до вокзала + 30 минут.
+     * Если время задано вручную или координаты не нашлись — не меняем.
+     */
+    private suspend fun adjustTrainLeaveTimes(flights: List<Flight>, stays: List<Stay>) {
+        val tt = travelTime ?: return
+        for (f in flights) {
+            if (!f.isTrain || f.departureMillis < System.currentTimeMillis() || settings.isManualRemind(f.id)) continue
+            val stay = stays.filter { s -> s.checkInMillis < f.departureMillis && s.checkOutMillis + 6 * 3_600_000L > f.departureMillis }
+                .maxByOrNull { it.checkInMillis } ?: continue
+            val city = itinerary.departureCity(f)
+            val est = tt.estimate("${stay.address}, ${stay.name}".trim(',', ' '), "вокзал ${f.fromName}, $city") ?: continue
+            val minutes = (((est.minutes + TravelTime.STATION_BUFFER_MIN) + 4) / 5 * 5).coerceIn(20, 180)
+            if (minutes != f.remindMinutes) db.flights().update(f.copy(remindMinutes = minutes))
         }
     }
 

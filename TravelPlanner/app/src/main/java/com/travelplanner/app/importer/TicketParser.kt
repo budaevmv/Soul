@@ -385,11 +385,22 @@ class TicketParser(
             val (d2, t2) = dateAfter(CHECK_OUT)
             inDate = d1; inTime = t1; outDate = d2; outTime = t2
         }
+        if (inDate == null) {
+            // «23 ноя, Пн   27 ноя, Пт» — заезд и выезд в одной строке, ниже «с 15:00 до 12:00»
+            sameLineDates(upper)?.let { (d1, d2, after) ->
+                inDate = d1
+                outDate = d2
+                val times = findTimes(upper, after until minOf(upper.length, after + 150))
+                inTime = times.getOrNull(0)
+                outTime = times.getOrNull(1)
+            }
+        }
         val checkIn = inDate ?: return null
-        val address = lineAfter(text, ADDRESS)
+        val header = headerAfterBooking(text)
+        val address = lineAfter(text, ADDRESS) ?: header?.second
 
         return ParsedStay(
-            name = lineAfter(text, HOTEL_NAME) ?: nameBeforeAddress(text),
+            name = lineAfter(text, HOTEL_NAME) ?: header?.first ?: nameBeforeAddress(text),
             address = address,
             checkIn = checkIn,
             checkInTime = inTime ?: LocalTime.of(14, 0),
@@ -397,6 +408,36 @@ class TicketParser(
             checkOutTime = outTime ?: LocalTime.of(12, 0),
             phone = findPhone(text),
         )
+    }
+
+    private fun sameLineDates(upper: String): Triple<LocalDate, LocalDate, Int>? {
+        var offset = 0
+        for (line in upper.lines()) {
+            val dates = datesWithPositions(line).map { it.second }
+            if (dates.size >= 2 && !dates[1].isBefore(dates[0]) && dates[1].toEpochDay() - dates[0].toEpochDay() <= 60) {
+                return Triple(dates[0], dates[1], offset + line.length)
+            }
+            offset += line.length + 1
+        }
+        return null
+    }
+
+    /**
+     * Ваучеры без подписей (Туту.ру и т.п.): сразу после «бронь №…» идёт строка
+     * «Название отеля  MY, Город, индекс, улица…» — делим её по коду страны.
+     */
+    private fun headerAfterBooking(text: String): Pair<String, String?>? {
+        val lines = text.lines()
+        val idx = lines.indexOfFirst { BOOKING_LINE.containsMatchIn(it) }
+        if (idx < 0) return null
+        val rest = lines.drop(idx + 1).map { it.trim() }.filter { l -> l.any { it.isLetterOrDigit() } }.dropWhile { BOOKING_LINE.containsMatchIn(it) }
+        val first = rest.firstOrNull()?.takeIf { l -> l.count { it.isLetter() } >= 3 && !TIME.containsMatchIn(l) } ?: return null
+        val m = COUNTRY_SPLIT.find(first) ?: return first to null
+        val name = first.substring(0, m.range.first).trim().takeIf { it.length >= 3 } ?: return null
+        var address = first.substring(m.range.first).trim()
+        rest.getOrNull(1)?.takeIf { l -> l.isNotBlank() && !Regex("^\\+?\\d[\\d ()-]{6,}$").matches(l) && datesWithPositions(l.uppercase()).isEmpty() }
+            ?.let { address += " " + it }
+        return name to address.replace(Regex(",\\s*,"), ",").replace(Regex("\\s+"), " ")
     }
 
     private fun columnDates(upper: String): Triple<LocalDate, LocalDate, Int>? {
@@ -438,12 +479,13 @@ class TicketParser(
 
     /** Телефон — первый номер в пределах пары строк после подписи (подпись и номер могут быть в разных колонках). */
     private fun findPhone(text: String): String? {
-        PHONE.find(text)?.groupValues?.get(1)?.trim()?.let { return it }
-        for (m in PHONE_KEYWORD.findAll(text)) {
+        val raw = PHONE.find(text)?.groupValues?.get(1)?.trim() ?: PHONE_KEYWORD.findAll(text).firstNotNullOfOrNull { m ->
             val window = text.substring(m.range.last + 1, minOf(text.length, m.range.last + 1 + 200))
-            PHONE_NUMBER.find(window)?.value?.trim()?.let { return it }
-        }
-        return null
+            PHONE_NUMBER.find(window)?.value?.trim()
+        } ?: return null
+        // «60350219888» — международный номер без «+» (не российский 8…), иначе не дозвониться
+        val digits = raw.filter { it.isDigit() }
+        return if (!raw.startsWith("+") && digits.length >= 11 && !digits.startsWith("8")) "+$raw" else raw
     }
 
     /**
@@ -483,6 +525,9 @@ class TicketParser(
 
     private fun normalize(raw: String): String {
         var t = raw.replace(' ', ' ').replace(' ', ' ').replace(' ', ' ')
+        // Иконки шрифтов (Private Use Area) убираем, «15\u000000» -> «15:00» (в шрифте нет глифа двоеточия)
+        t = PRIVATE_USE.replace(t, "")
+        t = CONTROL_BETWEEN_DIGITS.replace(t) { "${it.groupValues[1]}:${it.groupValues[2]}" }
         // «SheremetyevoSVO» -> «Sheremetyevo SVO»: код аэропорта приклеен к названию
         t = GLUED_IATA.replace(t) { "${it.groupValues[1]} ${it.groupValues[2]}" }
         // Кириллические коды российских перевозчиков во внутренних билетах
@@ -499,7 +544,8 @@ class TicketParser(
         /** Названия аэропортов, совпадающие с обычными словами. */
         private val GENERIC_NAMES = setOf("НОВЫЙ", "ЦЕНТРАЛЬНЫЙ", "СОКОЛ", "БАЙКАЛ", "ФЕНИКС", "МАКЕДОНИЯ", "БОЛЬШОЕ САВИНО")
         private val AMBIGUOUS_WORDS = setOf("CAN", "BUS", "SIN", "OSS", "DEL", "BOM", "MAD", "VAR", "GOT", "CPT")
-        private val TIME = Regex("(?<![\\d:])([01]?\\d|2[0-3]):([0-5]\\d)(?![\\d])")
+        // Вместо двоеточия иногда приходит «?» или «�» (в шрифте PDF нет глифа)
+        private val TIME = Regex("(?<![\\d:?])([01]?\\d|2[0-3])[:?\uFFFD]([0-5]\\d)(?![\\d])")
         private val DATE_NUMERIC = Regex("(?<!\\d)(\\d{1,2})[./](\\d{1,2})[./](\\d{4}|\\d{2})(?!\\d)")
         private val DATE_ISO = Regex("(?<!\\d)(\\d{4})-(\\d{2})-(\\d{2})(?!\\d)")
         private val DATE_WORD = Regex("(?<!\\d)(\\d{1,2})\\s?([A-ZА-ЯЁ]{3,9})\\.?,?\\s?(\\d{4}|\\d{2}(?![:\\d]))?")
@@ -539,6 +585,8 @@ class TicketParser(
             "JANUARY", "JAN", "FEBRUARY", "FEB", "MARCH", "MAR", "APRIL", "APR", "MAY", "JUNE", "JUN", "JULY", "JUL",
             "AUGUST", "AUG", "SEPTEMBER", "SEP", "SEPT", "OCTOBER", "OCT", "NOVEMBER", "NOV", "DECEMBER", "DEC",
         )
+        private val PRIVATE_USE = Regex("[\uE000-\uF8FF]")
+        private val CONTROL_BETWEEN_DIGITS = Regex("(\\d)[\u0000-\u0008\u000E-\u001F\uFFFD?](\\d)")
         private val GLUED_IATA = Regex("([a-zа-яё])([A-Z]{3})(?![A-Za-z])")
         private val TRAIN_MARKER = Regex("ПОЕЗД|TRAIN")
         private val CAR_MARKER = Regex("ВАГОН|\\bCAR\\b|COACH")
@@ -563,7 +611,9 @@ class TicketParser(
             "ОТПРАВЛЕНИЕ", "ПРИБЫТИЕ", "ПОЕЗД", "ВАГОН", "МЕСТО", "ДАТА", "ВРЕМЯ", "ОТПР", "ПРИБ", "ФИО", "ПАССАЖИР", "НОМЕР",
         )
         private val ORDER_NUMBER = Regex("(?:ЗАКАЗ[А]?|ЭЛЕКТРОННЫЙ БИЛЕТ|БИЛЕТ)\\s*(?:№|N)?\\s*:?\\s*(\\d{8,16})(?!\\d)")
-        private val PHONE_KEYWORD = Regex("(?iu)телефон|phone|тел\\.")
+        private val PHONE_KEYWORD = Regex("(?iu)телефон|phone|тел\\.|контакты отеля|звоните|по этому номеру")
+        private val BOOKING_LINE = Regex("(?iu)(бронь|бронирование|заказ|booking|reservation)\\s*(№|#|no\\.?)\\s*\\d")
+        private val COUNTRY_SPLIT = Regex("\\s(?=[A-Z]{2},\\s)")
         private val PHONE_NUMBER = Regex("\\+?\\d[\\d ()\\-]{8,18}\\d")
         private val BOOKING_NUMBER = Regex("(?:БРОНИРОВАНИ[ЕЯ]|BOOKING|ЗАКАЗ)[^№#\\n]{0,40}\\s*[№#]\\s*([A-ZА-Я0-9\\-]{5,20})")
         private val HOTEL_NAME = Regex("(?iu)(?:hotel name|hotel|property|отель|гостиница|объект размещения|объект)\\s*[:]\\s*([^\\n]+)")

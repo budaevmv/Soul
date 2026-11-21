@@ -72,7 +72,7 @@ fun FlightEditScreen(c: AppContainer, tripId: Long, flightId: Long, onDone: () -
             FlightFormFields(f, c.ref)
             Text(if (f.isTrain) "Напомнить «пора на вокзал» за:" else "Напомнить «пора в аэропорт» за:", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (if (f.isTrain) listOf(60, 90, 120) else listOf(120, 180, 240, 300)).forEach { m ->
+                (if (f.isTrain) (listOf(30, 45, 60, 90) + f.remindMinutes).distinct().sorted() else listOf(120, 180, 240, 300)).forEach { m ->
                     FilterChip(selected = f.remindMinutes == m, onClick = { f.remindMinutes = m }, label = { Text(Format.duration(m * 60_000L)) })
                 }
             }
@@ -90,6 +90,7 @@ fun FlightEditScreen(c: AppContainer, tripId: Long, flightId: Long, onDone: () -
                         error = "Заполните: " + f.missing().joinToString(", ")
                     } else {
                         scope.launch {
+                            if (f.base != null && f.remindMinutes != f.base.remindMinutes) c.settings.setManualRemind(f.base.id)
                             c.repository.saveFlight(flight)
                             onDone()
                         }

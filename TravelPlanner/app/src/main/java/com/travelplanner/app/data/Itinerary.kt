@@ -11,6 +11,9 @@ class Itinerary(private val ref: ReferenceData) {
     fun arrivalCity(f: Flight): String =
         if (f.isTrain) ref.citiesIn(f.toName).firstOrNull()?.city ?: f.toName else ref.cityName(f.toIata)
 
+    fun departureCity(f: Flight): String =
+        if (f.isTrain) ref.citiesIn(f.fromName).firstOrNull()?.city ?: f.fromName else ref.cityName(f.fromIata)
+
     private fun stayCity(s: Stay): String? = ref.citiesIn(s.address + " " + s.name).firstOrNull()?.city
 
     /**

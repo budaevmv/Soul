@@ -138,7 +138,7 @@ class ReferenceData(
         private val EN_CITY_ALIASES = mapOf(
             "MOSCOW" to "SVO", "SAINT PETERSBURG" to "LED", "ST. PETERSBURG" to "LED", "SARATOV" to "GSV", "KAZAN" to "KZN",
             "SOCHI" to "AER", "MINSK" to "MSQ", "ISTANBUL" to "IST", "ANTALYA" to "AYT", "DUBAI" to "DXB", "ABU DHABI" to "AUH",
-            "SHARJAH" to "SHJ", "DOHA" to "DOH", "KUALA LUMPUR" to "KUL", "BANGKOK" to "BKK", "PHUKET" to "HKT", "PATTAYA" to "UTP",
+            "SHARJAH" to "SHJ", "DOHA" to "DOH", "KUALA LUMPUR" to "KUL", "BANGKOK" to "BKK", "SHAH ALAM" to "KUL", "SETIA ALAM" to "KUL", "PETALING JAYA" to "KUL", "PUTRAJAYA" to "KUL", "SEPANG" to "KUL", "PHUKET" to "HKT", "PATTAYA" to "UTP",
             "BALI" to "DPS", "DENPASAR" to "DPS", "SINGAPORE" to "SIN", "HO CHI MINH" to "SGN", "HANOI" to "HAN", "NHA TRANG" to "CXR",
             "TBILISI" to "TBS", "BATUMI" to "BUS", "YEREVAN" to "EVN", "BAKU" to "GYD", "ALMATY" to "ALA", "ASTANA" to "NQZ",
             "TASHKENT" to "TAS", "SAMARKAND" to "SKD", "BISHKEK" to "FRU", "CAIRO" to "CAI", "HURGHADA" to "HRG",

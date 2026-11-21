@@ -191,6 +191,28 @@ class TicketParserTest {
     }
 
     @Test
+    fun tutuHotelVoucherWithoutLabels() {
+        val doc = parser().parse(Samples.TUTU_HOTEL)
+        val stay = doc.stay!!
+        assertEquals("Test Garden Hotel", stay.name)
+        assertEquals("MY, Shah Alam, 40170, No 1 Jalan Test Test Alam Dagang AH U13/AH, Seksyen U13", stay.address)
+        assertEquals(LocalDate.of(2026, 11, 23), stay.checkIn)
+        assertEquals(LocalTime.of(15, 0), stay.checkInTime)
+        assertEquals(LocalDate.of(2026, 11, 27), stay.checkOut)
+        assertEquals(LocalTime.of(12, 0), stay.checkOutTime)
+        assertEquals("+60300000000", stay.phone)
+        assertEquals("1700000001", doc.bookingRef)
+        assertEquals("Asia/Kuala_Lumpur", ref.zoneForPlace(stay.address!!)!!.id)
+    }
+
+    @Test
+    fun walkingDistanceToStation() {
+        // 1-я Брестская, 44 -> Белорусский вокзал: около 0,5 км
+        val km = com.travelplanner.app.data.TravelTime.distanceKm(55.7745 to 37.5850, 55.7766 to 37.5820)
+        assertTrue(km in 0.2..0.6)
+    }
+
+    @Test
     fun overnightArrivalMovesToNextDay() {
         val text = "Flight EK 132 DME - DXB 30/12/2026 23:50 06:05"
         val f = parser().parse(text).flights.single()

@@ -197,7 +197,7 @@ fun TimelineCard(
                     if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium)
                     Text("Заселение с ${Format.time(s.checkInMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
                     Chips {
-                        if (s.address.isNotBlank()) ActionChip(Icons.Default.Map, "Маршрут") { openMaps(context, s.address) }
+                        ActionChip(Icons.Default.Map, "Маршрут") { openMaps(context, "${s.name}, ${s.address}".trim(',', ' ')) }
                     }
                 }
                 is TimelineEntry.CheckIn -> {
@@ -214,7 +214,7 @@ fun TimelineCard(
                         )
                     }
                     Chips {
-                        if (s.address.isNotBlank()) ActionChip(Icons.Default.Map, "На карте") { openMaps(context, s.address) }
+                        ActionChip(Icons.Default.Map, "На карте") { openMaps(context, "${s.name}, ${s.address}".trim(',', ' ')) }
                         if (s.phone.isNotBlank()) ActionChip(Icons.Default.Phone, "Позвонить") { dial(context, s.phone) }
                     }
                 }

@@ -6,6 +6,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.travelplanner.app.calendar.CalendarSync
 import com.travelplanner.app.data.AppDatabase
 import com.travelplanner.app.data.Itinerary
+import com.travelplanner.app.data.TravelTime
 import com.travelplanner.app.data.Settings
 import com.travelplanner.app.data.TripRepository
 import com.travelplanner.app.importer.TicketImporter
@@ -32,7 +33,7 @@ class AppContainer(context: Context) {
     val settings = Settings(context)
     val scheduler by lazy { ReminderScheduler(context, settings, ref) }
     val calendar by lazy { CalendarSync(context, ref) }
-    val repository by lazy { TripRepository(db, scheduler, calendar, settings, Itinerary(ref)) }
+    val repository by lazy { TripRepository(db, scheduler, calendar, settings, Itinerary(ref), TravelTime(context)) }
     val importer by lazy { TicketImporter(context, ref) }
     val assembler by lazy { TripAssembler(importer, repository, ref, settings) }
 

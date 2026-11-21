@@ -12,7 +12,7 @@ class Settings(context: Context) {
 
     /** За сколько минут до отправления поезда напоминать «пора на вокзал». */
     var trainRemindMinutes: Int
-        get() = prefs.getInt("train_remind_minutes", 90)
+        get() = prefs.getInt("train_remind_minutes", 60)
         set(value) = prefs.edit().putInt("train_remind_minutes", value).apply()
 
     /** Добавлять ли перелёты и проживание в системный календарь. */
@@ -25,6 +25,13 @@ class Settings(context: Context) {
     var calendarLogicVersion: Int
         get() = prefs.getInt("calendar_logic_version", 1)
         set(value) = prefs.edit().putInt("calendar_logic_version", value).apply()
+
+    /** Рейсы/поезда, у которых время «пора выезжать» задано вручную (не пересчитываем автоматически). */
+    fun isManualRemind(id: Long): Boolean = prefs.getStringSet("manual_remind", emptySet())!!.contains(id.toString())
+    fun setManualRemind(id: Long) {
+        val set = prefs.getStringSet("manual_remind", emptySet())!!.toMutableSet().apply { add(id.toString()) }
+        prefs.edit().putStringSet("manual_remind", set).apply()
+    }
 
     var checkinReminder: Boolean
         get() = prefs.getBoolean("checkin_reminder", true)
