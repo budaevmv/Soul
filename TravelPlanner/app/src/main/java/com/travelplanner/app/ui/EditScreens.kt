@@ -1,5 +1,7 @@
 package com.travelplanner.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -121,8 +124,40 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
     val context = LocalContext.current
     val flights by c.repository.flights(tripId).collectAsState(initial = emptyList())
     var form by remember { mutableStateOf<StayForm?>(null) }
-    var confirmDelete by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var attachment by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<String?>(null) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        loading = true
+        error = null
+        info = null
+        scope.launch {
+            runCatching { c.importer.import(uri) }
+                .onSuccess { r ->
+                    attachment = r.storedFile.absolutePath
+                    val p = r.document.stay
+                    val f = form
+                    if (p == null || f == null) {
+                        error = "Не удалось найти данные брони в файле. Файл прикреплён — заполните поля вручную."
+                    } else {
+                        p.name?.let { f.name = it }
+                        p.address?.let { f.address = it }
+                        f.checkInDate = p.checkIn
+                        f.checkInTime = p.checkInTime
+                        p.checkOut?.let { f.checkOutDate = it }
+                        f.checkOutTime = p.checkOutTime
+                        p.phone?.let { f.phone = it }
+                        r.document.bookingRef?.let { f.booking = it }
+                        info = "Данные брони заполнены из файла — проверьте их и нажмите «Сохранить»."
+                    }
+                }
+                .onFailure { error = "Ошибка чтения файла: ${it.message}" }
+            loading = false
+        }
+    }
+    var confirmDelete by remember { mutableStateOf(false) }
     LaunchedEffect(stayId) {
         form = if (stayId == 0L) StayForm() else c.db.stays().get(stayId)?.let { StayForm.of(it) } ?: StayForm()
     }
@@ -142,6 +177,15 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            OutlinedButton(
+                onClick = { picker.launch(arrayOf("application/pdf", "image/*", "text/plain", "text/html")) },
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.UploadFile, null)
+                Text(if (loading) "  Распознаю бронь…" else "  Загрузить бронь из файла (PDF, скриншот)")
+            }
+            info?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             StayFormFields(s)
             s.checkInDate?.let {
                 Text(
@@ -149,7 +193,7 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            s.base?.attachmentPath?.let { path ->
+            (attachment ?: s.base?.attachmentPath)?.let { path ->
                 OutlinedButton(onClick = { openDocument(context, File(path)) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Description, null)
                     Text("  Открыть бронь")
@@ -158,7 +202,7 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 onClick = {
-                    val stay = s.toStay(tripId, flights)
+                    val stay = s.toStay(tripId, flights, attachment ?: s.base?.attachmentPath)
                     if (stay == null) {
                         error = "Заполните: " + s.missing().joinToString(", ")
                     } else {

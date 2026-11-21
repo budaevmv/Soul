@@ -140,14 +140,113 @@ class TicketParserTest {
             org.apache.pdfbox.text.PDFTextStripper().apply { sortByPosition = true }.getText(d)
         }
         val doc = parser().parse(text)
+        println("TEXT:\n$text\nEND_TEXT")
         println("PARSED: $doc")
-        assertTrue("рейсы не найдены", doc.flights.isNotEmpty())
+        assertTrue("ничего не найдено", !doc.isEmpty)
         doc.flights.forEach { f ->
             assertNotNull("from", f.from)
             assertNotNull("to", f.to)
             assertNotNull("date", f.depDate)
             assertNotNull("time", f.depTime)
         }
+    }
+
+    /** Квитанция агентства с блоками ВЫЛЕТ/ПРИЛЁТ и пересадкой (данные вымышленные). */
+    @Test
+    fun agencyReceiptWithDepartureArrivalBlocks() {
+        val text = """
+                           ООО "Тест Тревел", Тел: +7 (495) 000-00-00                       БРОНИРОВАНИЕ
+                           IATA 90000000                                                    ПОДТВЕРЖДЕНО
+                           КВИТАНЦИЯ ПО ЗАКАЗУ /
+                           ЭЛ. БИЛЕТ
+                           ФАМИЛИЯ И ИМЯ ПАССАЖИРА /                      ДАТА / ЗАКАЗ № / ТЕЛЕФОН ПОКУПАТЕЛЯ
+                           ДОКУМЕНТ                               20 НОЯБРЯ 2026 Г., 17:30 / F20000000000 /
+                           IVANOV PETR /                                        +7900***00
+                           700000000
+             ВЫЛЕТ:        22 НОЯБ. 2026 Г.                 АЭРОПОРТ МИНСК
+                           23:50                            МИНСК, БЕЛАРУСЬ                     MSQ
+            Рейс#          FZ-1716                          Эконом (KLSOSRU1)
+       Эл. билет#          1760000000000                    Осуществляет авиакомпания FlyDubai
+          Бронь#           QWE7RT;ASD8FG, "FZ"              Ручная кладь: 1 багажное место 7кг на пассажира 55x38x20
+           Статус          HK                               Багаж: 1 багажное место 30кг на пассажира
+           ПРИЛЁТ:         23 НОЯБ. 2026 Г.                 АЭРОПОРТ ДУБАЙ , ТЕРМИНАЛ 3
+                           8:00                             ДУБАЙ, ОАЭ                           DXB
+             ВЫЛЕТ:        23 НОЯБ. 2026 Г.                 АЭРОПОРТ ДУБАЙ , ТЕРМИНАЛ 3
+                           10:40                            ДУБАЙ, ОАЭ                           DXB
+            Рейс#          EK-342                           Эконом (KLSOSRU1)
+          Бронь#           QWE7RT;ASD8FG, "EK"              Ручная кладь: 1 багажное место 7кг на пассажира 55x38x22
+           Статус          HK                               Место на борту: 60A
+           ПРИЛЁТ:         23 НОЯБ. 2026 Г.                 АЭРОПОРТ КУАЛА-ЛУМПУР , ТЕРМИНАЛ 1
+                           21:55                            КУАЛА-ЛУМПУР, МАЛАЙЗИЯ               KUL
+            ТАКСА B8                                               413.00   RUB
+            ТАКСА ZR                                               113.00   RUB
+            РАСЧЕТ ТАРИФА MSQ FZ X/DXB EK KUL552.06NUC552.06END ROE0.891192
+            DEPARTURE:               NOV 22, 2026                           MINSK AIRPORT
+                                     23:50                                  MINSK, BY            MSQ
+                   Flight#           FZ-1716                                Economy (KLSOSRU1)
+                 ARRIVAL:            NOV 23, 2026                           DUBAI AIRPORT , TERMINAL 3
+                                     8:00                                   DUBAI, AE            DXB
+            DEPARTURE:               NOV 23, 2026                           DUBAI AIRPORT , TERMINAL 3
+                                     10:40                                  DUBAI, AE            DXB
+                   Flight#           EK-342                                 Economy (KLSOSRU1)
+                 ARRIVAL:            NOV 23, 2026                           KUALA LUMPUR AIRPORT , TERMINAL 1
+                                     21:55                                  KUALA LUMPUR, MY     KUL
+        """.trimIndent()
+        val doc = parser().parse(text)
+        assertEquals(2, doc.flights.size)
+        val (a, b) = doc.flights
+        assertEquals("FZ" to "1716", a.airlineCode to a.number)
+        assertEquals("MSQ" to "DXB", a.from to a.to)
+        assertEquals(LocalDate.of(2026, 11, 22), a.depDate)
+        assertEquals(LocalTime.of(23, 50), a.depTime)
+        assertEquals(LocalDate.of(2026, 11, 23), a.arrDate)
+        assertEquals(LocalTime.of(8, 0), a.arrTime)
+        assertEquals("EK" to "342", b.airlineCode to b.number)
+        assertEquals("DXB" to "KUL", b.from to b.to)
+        assertEquals(LocalDate.of(2026, 11, 23), b.depDate)
+        assertEquals(LocalTime.of(10, 40), b.depTime)
+        assertEquals(LocalTime.of(21, 55), b.arrTime)
+        assertEquals("3", b.terminal)
+        assertEquals("60A", b.seat)
+        assertEquals("QWE7RT", doc.bookingRef)
+        assertEquals("IVANOV PETR", doc.passenger)
+    }
+
+    /** Подтверждение брони отеля с датами «в колонках» (данные вымышленные). */
+    @Test
+    fun hotelVoucherWithColumnDates() {
+        val text = """
+                                                                  Команда поддержки 24/7
+                                     8 800 000-00-00 по России, +7 499 000-00-00 из-за рубежа
+                                                   Заезд                  Отъезд            1 номер
+            Бронирование от 20.11.2026
+            № 400000000001
+            № партнера 1000000
+                                                   21           –          22                  1
+                                                  ноября                 ноября               ночь
+                                                  с 14:00                до 12:00
+
+            Test Hills Hotel
+
+                            Адрес отеля
+                            улица Тестовая, д.1, Москва
+                            Телефон                 Почта
+                Отель на
+                 карте
+                            +79000000000            hotel@example.com
+            Вы забронировали Стандарт одноместный
+        """.trimIndent()
+        val doc = parser().parse(text)
+        assertTrue(doc.flights.isEmpty())
+        val stay = doc.stay!!
+        assertEquals("Test Hills Hotel", stay.name)
+        assertEquals("улица Тестовая, д.1, Москва", stay.address)
+        assertEquals(LocalDate.of(2026, 11, 21), stay.checkIn)
+        assertEquals(LocalTime.of(14, 0), stay.checkInTime)
+        assertEquals(LocalDate.of(2026, 11, 22), stay.checkOut)
+        assertEquals(LocalTime.of(12, 0), stay.checkOutTime)
+        assertEquals("+79000000000", stay.phone)
+        assertEquals("400000000001", doc.bookingRef)
     }
 
     @Test

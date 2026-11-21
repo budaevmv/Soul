@@ -113,7 +113,7 @@ fun TripScreen(
                             addMenu = false
                             onEditFlight(0)
                         })
-                        DropdownMenuItem(text = { Text("Жильё") }, leadingIcon = { Icon(Icons.Default.Hotel, null) }, onClick = {
+                        DropdownMenuItem(text = { Text("Жильё (из файла брони или вручную)") }, leadingIcon = { Icon(Icons.Default.Hotel, null) }, onClick = {
                             addMenu = false
                             onEditStay(0)
                         })

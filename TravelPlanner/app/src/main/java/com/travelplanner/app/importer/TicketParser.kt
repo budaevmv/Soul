@@ -83,7 +83,12 @@ class TicketParser(
             if (seen.add(code + number)) hits += FlightHit(code, number, m.range.first, m.range.last + 1)
         }
 
+        val depLabels = DEP_LABEL.findAll(upper).map { it.range }.toList()
+        val arrLabels = ARR_LABEL.findAll(upper).map { it.range }.toList()
+        val allLabels = (depLabels + arrLabels).sortedBy { it.first }
+
         return hits.mapIndexed { i, hit ->
+            labeledFlight(upper, hits, i, depLabels, arrLabels, allLabels)?.let { return@mapIndexed it }
             val nextStart = hits.getOrNull(i + 1)?.start ?: minOf(upper.length, hit.end + 500)
             val prevEnd = hits.getOrNull(i - 1)?.end ?: 0
             val forward = hit.end until maxOf(hit.end, nextStart)
@@ -114,6 +119,54 @@ class TicketParser(
                 seat = SEAT.find(segment)?.groupValues?.get(1),
             )
         }
+    }
+
+    /**
+     * Квитанции с блоками «ВЫЛЕТ: … / ПРИЛЁТ: …» (DEPARTURE: / ARRIVAL:): дата, время и аэропорт
+     * вылета часто стоят ДО номера рейса, поэтому берём их из своего блока.
+     */
+    private fun labeledFlight(
+        upper: String,
+        hits: List<FlightHit>,
+        i: Int,
+        depLabels: List<IntRange>,
+        arrLabels: List<IntRange>,
+        allLabels: List<IntRange>,
+    ): ParsedFlight? {
+        if (depLabels.isEmpty() || arrLabels.isEmpty()) return null
+        val hit = hits[i]
+        val prevEnd = hits.getOrNull(i - 1)?.end ?: 0
+        val nextStart = hits.getOrNull(i + 1)?.start ?: upper.length
+        val dep = depLabels.lastOrNull { it.first in prevEnd until hit.start }
+            ?: depLabels.firstOrNull { it.first in hit.end until nextStart }
+            ?: return null
+        val arr = arrLabels.firstOrNull { it.first > maxOf(dep.last, hit.end) } ?: return null
+
+        fun block(label: IntRange): IntRange {
+            val end = allLabels.firstOrNull { it.first > label.last }?.first ?: minOf(upper.length, label.last + 300)
+            return (label.last + 1) until minOf(end, label.last + 1 + 400)
+        }
+        val depBlock = block(dep)
+        val arrBlock = block(arr)
+        val from = findAirports(upper, depBlock).firstOrNull() ?: return null
+        val to = findAirports(upper, arrBlock).firstOrNull { it != from } ?: return null
+        val depDate = findDates(upper, depBlock).firstOrNull()
+        val depTime = findTimes(upper, depBlock).firstOrNull()
+        val arrDate = findDates(upper, arrBlock).firstOrNull()
+        val arrTime = findTimes(upper, arrBlock).firstOrNull()
+        val whole = upper.substring(dep.first, minOf(upper.length, arrBlock.last + 1))
+        return ParsedFlight(
+            airlineCode = hit.code,
+            number = hit.number,
+            from = from,
+            to = to,
+            depDate = depDate,
+            depTime = depTime,
+            arrDate = if (arrTime != null) (arrDate ?: depDate) else null,
+            arrTime = arrTime,
+            terminal = TERMINAL.find(upper.substring(depBlock.first, depBlock.last + 1))?.groupValues?.get(1),
+            seat = SEAT.find(whole)?.groupValues?.get(1),
+        )
     }
 
     private fun findAirports(upper: String, range: IntRange): List<String> {
@@ -159,6 +212,10 @@ class TicketParser(
             val d = if (y.isNotEmpty()) date(fullYear(y), month, day) else inferYear(month, day)
             d?.let { found += m.range.first to it }
         }
+        for (m in DATE_MONTH_FIRST.findAll(window)) {
+            val month = MONTHS[m.groupValues[1].take(3)] ?: continue
+            date(m.groupValues[3].toInt(), month, m.groupValues[2].toInt())?.let { found += m.range.first to it }
+        }
         return found.sortedBy { it.first }.map { it.second }
     }
 
@@ -194,23 +251,84 @@ class TicketParser(
             return d to t
         }
 
-        val (inDate, inTime) = dateAfter(CHECK_IN)
-        val (outDate, outTime) = dateAfter(CHECK_OUT)
+        var inDate: LocalDate? = null
+        var inTime: LocalTime? = null
+        var outDate: LocalDate? = null
+        var outTime: LocalTime? = null
+
+        // Даты «в колонках»: строка «ноября ноября», а над ней числа «21 – 22» (возможно, вперемешку с другими колонками)
+        columnDates(upper)?.let { (d1, d2, after) ->
+            inDate = d1
+            outDate = d2
+            val times = findTimes(upper, after until minOf(upper.length, after + 150))
+            inTime = times.getOrNull(0)
+            outTime = times.getOrNull(1)
+        }
+        if (inDate == null) {
+            val (d1, t1) = dateAfter(CHECK_IN)
+            val (d2, t2) = dateAfter(CHECK_OUT)
+            inDate = d1; inTime = t1; outDate = d2; outTime = t2
+        }
         val checkIn = inDate ?: return null
+        val address = lineAfter(text, ADDRESS)
 
         return ParsedStay(
-            name = lineAfter(text, HOTEL_NAME),
-            address = lineAfter(text, ADDRESS),
+            name = lineAfter(text, HOTEL_NAME) ?: nameBeforeAddress(text),
+            address = address,
             checkIn = checkIn,
             checkInTime = inTime ?: LocalTime.of(14, 0),
             checkOut = outDate?.takeIf { !it.isBefore(checkIn) },
             checkOutTime = outTime ?: LocalTime.of(12, 0),
-            phone = PHONE.find(text)?.groupValues?.get(1)?.trim(),
+            phone = findPhone(text),
         )
+    }
+
+    private fun columnDates(upper: String): Triple<LocalDate, LocalDate, Int>? {
+        val lines = upper.lines()
+        var offset = 0
+        for ((i, line) in lines.withIndex()) {
+            val words = line.split(Regex("\\s+")).map { it.trim('.', ',') }.filter { it.isNotEmpty() }
+            val pair = words.zipWithNext().firstOrNull { (a, b) -> a in MONTH_WORDS && b in MONTH_WORDS }
+            if (pair != null) {
+                // ближайшая строка сверху, где есть хотя бы два числа-дня
+                val days = (i - 1 downTo maxOf(0, i - 3)).asSequence()
+                    .map { j -> DAY_TOKEN.findAll(lines[j]).map { it.value.toInt() }.filter { it in 1..31 }.toList() }
+                    .firstOrNull { it.size >= 2 }
+                if (days != null) {
+                    val m1 = MONTHS.getValue(pair.first.take(3))
+                    val m2 = MONTHS.getValue(pair.second.take(3))
+                    val d1 = inferYear(m1, days[0]) ?: return null
+                    var d2 = inferYear(m2, days[1]) ?: return null
+                    if (d2.isBefore(d1)) d2 = d2.plusYears(1)
+                    return Triple(d1, d2, offset + line.length)
+                }
+            }
+            offset += line.length + 1
+        }
+        return null
     }
 
     private fun lineAfter(text: String, regex: Regex): String? =
         regex.find(text)?.groupValues?.get(1)?.trim()?.trim(':', ' ', '-')?.takeIf { it.length >= 3 }
+
+    /** Название отеля часто стоит отдельной строкой над «Адрес отеля». */
+    private fun nameBeforeAddress(text: String): String? {
+        val m = ADDRESS.find(text) ?: return null
+        return text.substring(0, m.range.first).lines().map { it.trim() }.lastOrNull { line ->
+            line.length >= 3 && line.count { it.isLetter() } >= 3 && !TIME.containsMatchIn(line) &&
+                !Regex("(?iu)^(ночь|ночи|ночей|nights?|с |до )").containsMatchIn(line)
+        }
+    }
+
+    /** Телефон — первый номер в пределах пары строк после подписи (подпись и номер могут быть в разных колонках). */
+    private fun findPhone(text: String): String? {
+        PHONE.find(text)?.groupValues?.get(1)?.trim()?.let { return it }
+        for (m in PHONE_KEYWORD.findAll(text)) {
+            val window = text.substring(m.range.last + 1, minOf(text.length, m.range.last + 1 + 200))
+            PHONE_NUMBER.find(window)?.value?.trim()?.let { return it }
+        }
+        return null
+    }
 
     /**
      * Код бронирования (PNR). В квитанциях он часто стоит не сразу за подписью, а в соседней
@@ -229,16 +347,19 @@ class TicketParser(
         }
         return BOOKING_REF.findAll(upper).map { it.groupValues[1] }.firstOrNull { t ->
             t.any(Char::isDigit) || t.count { it in VOWELS } <= 1
-        }
+        } ?: BOOKING_NUMBER.find(upper)?.groupValues?.get(1)
     }
 
     /** Имя пассажира — первая строка из 2–4 слов ЗАГЛАВНЫМИ буквами после подписи «Пассажир / ФИО». */
     private fun findPassenger(text: String): String? {
-        for (m in PASSENGER_KEYWORD.findAll(text)) {
-            val window = text.substring(m.range.last + 1, minOf(text.length, m.range.last + 1 + 400))
-            PASSENGER_NAME.findAll(window).map { it.value.trim() }
-                .firstOrNull { name -> name.split(' ', '/').none { it in NAME_STOP_WORDS } }
-                ?.let { return it }
+        // Имена в билетах почти всегда латиницей — сначала ищем латиницу, потом кириллицу
+        for (regex in listOf(PASSENGER_NAME_LATIN, PASSENGER_NAME)) {
+            for (m in PASSENGER_KEYWORD.findAll(text)) {
+                val window = text.substring(m.range.last + 1, minOf(text.length, m.range.last + 1 + 400))
+                regex.findAll(window).map { it.value.trim() }
+                    .firstOrNull { name -> name.split(' ', '/').filter { it.isNotBlank() }.none { it in NAME_STOP_WORDS } }
+                    ?.let { return it }
+            }
         }
         return null
     }
@@ -253,7 +374,7 @@ class TicketParser(
     }
 
     companion object {
-        private val FLIGHT_NO = Regex("(?<![A-Z0-9])([A-Z][A-Z0-9]|[0-9][A-Z])\\s?-?\\s?(\\d{2,4})(?![0-9:])")
+        private val FLIGHT_NO = Regex("(?<![A-Z0-9])([A-Z][A-Z0-9]|[0-9][A-Z])\\s?-?\\s?(\\d{2,4})(?![0-9:A-Za-zА-Яа-я])")
         private val FLIGHT_KEYWORD = Regex("FLIGHT|РЕЙС|FLT")
         private val IATA = Regex("(?<![A-Z])[A-Z]{3}(?![A-Z])")
         /** Названия аэропортов, совпадающие с обычными словами. */
@@ -263,8 +384,11 @@ class TicketParser(
         private val DATE_NUMERIC = Regex("(?<!\\d)(\\d{1,2})[./](\\d{1,2})[./](\\d{4}|\\d{2})(?!\\d)")
         private val DATE_ISO = Regex("(?<!\\d)(\\d{4})-(\\d{2})-(\\d{2})(?!\\d)")
         private val DATE_WORD = Regex("(?<!\\d)(\\d{1,2})\\s?([A-ZА-ЯЁ]{3,9})\\.?,?\\s?(\\d{4}|\\d{2}(?![:\\d]))?")
+        private val DATE_MONTH_FIRST = Regex("(?<![A-ZА-ЯЁ])([A-Z]{3,9})\\.?\\s(\\d{1,2}),?\\s(\\d{4})(?!\\d)")
+        private val DEP_LABEL = Regex("(?:ВЫЛЕТ|DEPARTURE|ОТПРАВЛЕНИЕ)\\s*:")
+        private val ARR_LABEL = Regex("(?:ПРИЛ[ЕЁ]Т|ARRIVAL|ПРИБЫТИЕ)\\s*:")
         private val TERMINAL = Regex("(?:TERMINAL|ТЕРМИНАЛ)\\s*[:№]?\\s*([A-Z0-9А-Я]{1,2})(?![A-Z0-9А-Я])")
-        private val SEAT = Regex("(?:SEAT|МЕСТО)\\s*[:№]?\\s*(\\d{1,2}[A-K])(?![A-Z])")
+        private val SEAT = Regex("(?:SEAT|МЕСТО(?:\\s+НА\\s+БОРТУ)?)\\s*[:№]?\\s*(\\d{1,2}[A-K])(?![A-Z])")
         private val BOOKING_REF = Regex(
             "(?:BOOKING\\s*(?:REFERENCE|REF\\.?|CODE|NUMBER)?|PNR|CONFIRMATION\\s*(?:NUMBER|CODE)?|" +
                 "КОД\\s*БРОНИ(?:РОВАНИЯ)?|НОМЕР\\s*БРОНИ(?:РОВАНИЯ)?|НОМЕР\\s*ЗАКАЗА|БРОНЬ)\\s*[:#№]?\\s*([A-ZА-Я0-9]{5,10})(?![A-ZА-Я0-9])",
@@ -276,16 +400,31 @@ class TicketParser(
         private const val VOWELS = "AEIOUYАЕЁИОУЫЭЮЯ"
         private val PASSENGER_KEYWORD = Regex("(?iu)passenger|пассажир|фамилия,?\\s*имя|\\bФИО\\b|клиент")
         private val PASSENGER_NAME = Regex("(?<![A-Za-zА-Яа-яЁё])[A-ZА-ЯЁ]{2,}(?:[ /]{1,2}[A-ZА-ЯЁ]{2,}){1,3}(?![A-Za-zА-Яа-яЁё])")
+        private val PASSENGER_NAME_LATIN = Regex("(?<![A-Za-zА-Яа-яЁё])[A-Z]{2,}(?:[ /]{1,2}[A-Z]{2,}){1,3}(?![A-Za-zА-Яа-яЁё])")
         private val NAME_STOP_WORDS = setOf(
+            "ДАТА", "ЗАКАЗ", "ТЕЛЕФОН", "ПОКУПАТЕЛЯ", "ДОКУМЕНТ", "ПАСПОРТ", "НОМЕР", "БИЛЕТ", "БИЛЕТА", "ЭЛ", "ТРЕВЕЛ",
+            "IATA", "PHONE", "CUSTOMER", "CONTACT", "TRAVEL", "DOCUMENT", "NO",
             "PASSPORT", "ORDER", "NUMBER", "TICKET", "BOOKING", "FLIGHT", "CLASS", "ECONOMY", "BUSINESS", "DATE",
             "ELECTRONIC", "ITINERARY", "RECEIPT", "SEAT", "FROM", "TO", "DEP", "ARR", "RUB", "USD", "EUR", "РФ", "ФИО",
         )
         private val STAY_KEYWORD = Regex("HOTEL|ОТЕЛ|ГОСТИНИЦ|ЗАЕЗД|CHECK-IN|CHECK IN|APARTMENT|АПАРТАМЕНТ|HOSTEL|ХОСТЕЛ|ПРОЖИВАНИ|ACCOMMODATION|AIRBNB|BOOKING\\.COM")
         private val STRONG_STAY_KEYWORD = Regex("HOTEL|ОТЕЛ|ГОСТИНИЦ|ЗАЕЗД|APARTMENT|АПАРТАМЕНТ|HOSTEL|ХОСТЕЛ|ПРОЖИВАНИ|ACCOMMODATION|AIRBNB")
         private val CHECK_IN = Regex("CHECK[- ]?IN|ЗАЕЗД|ДАТА ЗАЕЗДА|ARRIVAL")
-        private val CHECK_OUT = Regex("CHECK[- ]?OUT|ВЫЕЗД|ДАТА ВЫЕЗДА|DEPARTURE")
+        private val CHECK_OUT = Regex("CHECK[- ]?OUT|ВЫЕЗД|ОТЪЕЗД|ДАТА ВЫЕЗДА|DEPARTURE")
+        private val DAY_TOKEN = Regex("(?<![\\d.,:№])\\d{1,2}(?![\\d.,:])")
+        private val MONTH_WORDS: Set<String> = setOf(
+            "ЯНВАРЬ", "ЯНВАРЯ", "ЯНВ", "ФЕВРАЛЬ", "ФЕВРАЛЯ", "ФЕВ", "МАРТ", "МАРТА", "МАР", "АПРЕЛЬ", "АПРЕЛЯ", "АПР",
+            "МАЙ", "МАЯ", "ИЮНЬ", "ИЮНЯ", "ИЮН", "ИЮЛЬ", "ИЮЛЯ", "ИЮЛ", "АВГУСТ", "АВГУСТА", "АВГ",
+            "СЕНТЯБРЬ", "СЕНТЯБРЯ", "СЕН", "СЕНТ", "ОКТЯБРЬ", "ОКТЯБРЯ", "ОКТ", "НОЯБРЬ", "НОЯБРЯ", "НОЯ", "НОЯБ",
+            "ДЕКАБРЬ", "ДЕКАБРЯ", "ДЕК",
+            "JANUARY", "JAN", "FEBRUARY", "FEB", "MARCH", "MAR", "APRIL", "APR", "MAY", "JUNE", "JUN", "JULY", "JUL",
+            "AUGUST", "AUG", "SEPTEMBER", "SEP", "SEPT", "OCTOBER", "OCT", "NOVEMBER", "NOV", "DECEMBER", "DEC",
+        )
+        private val PHONE_KEYWORD = Regex("(?iu)телефон|phone|тел\\.")
+        private val PHONE_NUMBER = Regex("\\+?\\d[\\d ()\\-]{8,18}\\d")
+        private val BOOKING_NUMBER = Regex("(?:БРОНИРОВАНИ[ЕЯ]|BOOKING|ЗАКАЗ)[^№#\\n]{0,40}\\s*[№#]\\s*([A-ZА-Я0-9\\-]{5,20})")
         private val HOTEL_NAME = Regex("(?iu)(?:hotel name|hotel|property|отель|гостиница|объект размещения|объект)\\s*[:]\\s*([^\\n]+)")
-        private val ADDRESS = Regex("(?iu)(?:address|адрес)\\s*[:]?\\s*([^\\n]+)")
+        private val ADDRESS = Regex("(?iu)(?:address|адрес(?:\\s+отеля|\\s+объекта)?)[ \\t]*:?[ \\t]*(?:\\n\\s*)?([^\\n]+)")
         private val PHONE = Regex("(?iu)(?:phone|tel\\.?|телефон|тел\\.)\\s*[:]?\\s*(\\+?[\\d][\\d\\s()\\-]{6,20}\\d)")
 
         private val CYRILLIC_CARRIERS = listOf(
