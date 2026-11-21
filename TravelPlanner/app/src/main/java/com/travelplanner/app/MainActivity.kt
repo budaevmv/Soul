@@ -36,7 +36,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val c = (application as TravelApp).container
         if (savedInstanceState == null) handleIntent(intent)
-        lifecycleScope.launch { c.repository.rescheduleAll() }
+        lifecycleScope.launch {
+            // После обновления (пересадки, выезд из отеля) один раз обновляем и события календаря
+            val refreshCalendar = c.settings.calendarLogicVersion < CALENDAR_LOGIC_VERSION && c.calendar.hasPermission()
+            c.repository.rescheduleAll(syncCalendar = refreshCalendar)
+            if (refreshCalendar) c.settings.calendarLogicVersion = CALENDAR_LOGIC_VERSION
+        }
 
         setContent {
             TravelTheme {
@@ -144,5 +149,6 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_TRIP_ID = "trip_id"
+        private const val CALENDAR_LOGIC_VERSION = 2
     }
 }

@@ -178,7 +178,7 @@ private fun PlanTab(
     onEditFlight: (Long) -> Unit,
     onEditStay: (Long) -> Unit,
 ) {
-    val entries = remember(flights, stays) { Timeline.build(flights, stays) }
+    val entries = remember(flights, stays) { Timeline.build(flights, stays, c.ref) }
     val now = System.currentTimeMillis()
     val next = Timeline.next(entries, now)
     if (entries.isEmpty()) {

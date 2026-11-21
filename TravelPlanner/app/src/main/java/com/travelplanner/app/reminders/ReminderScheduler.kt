@@ -27,10 +27,13 @@ class ReminderScheduler(
     fun canScheduleExact(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
 
-    fun scheduleFlight(flight: Flight, now: Long = System.currentTimeMillis()) {
+    /** [connection] — пересадка: уже в аэропорту, «пора выезжать» не нужно. */
+    fun scheduleFlight(flight: Flight, now: Long = System.currentTimeMillis(), connection: Boolean = false) {
         cancelFlight(flight.id)
-        val goAt = flight.departureMillis - flight.remindMinutes * 60_000L
-        set(goAt, now, requestCode(flight.id, KIND_GO), flight.id, KIND_GO)
+        if (!connection) {
+            val goAt = flight.departureMillis - flight.remindMinutes * 60_000L
+            set(goAt, now, requestCode(flight.id, KIND_GO), flight.id, KIND_GO)
+        }
 
         if (flight.isTrain) return
         val airline = ref.airline(flight.airlineCode)
@@ -46,9 +49,14 @@ class ReminderScheduler(
         cancel(requestCode(flightId, KIND_CHECKIN), flightId, KIND_CHECKIN)
     }
 
-    fun scheduleStay(stay: Stay, now: Long = System.currentTimeMillis()) {
+    /** [leaveAt] — когда на самом деле уезжаем из отеля (раньше расчётного часа), если известно. */
+    fun scheduleStay(stay: Stay, now: Long = System.currentTimeMillis(), leaveAt: Long? = null) {
         cancelStay(stay.id)
         set(stay.checkInMillis - 3 * 3_600_000L, now, requestCode(stay.id, KIND_STAY_CHECKIN), stay.id, KIND_STAY_CHECKIN)
+        if (leaveAt != null) {
+            set(minOf(leaveAt - 30 * 60_000L, stay.checkOutMillis - 2 * 3_600_000L), now, requestCode(stay.id, KIND_STAY_CHECKOUT), stay.id, KIND_STAY_CHECKOUT)
+            return
+        }
         set(stay.checkOutMillis - 2 * 3_600_000L, now, requestCode(stay.id, KIND_STAY_CHECKOUT), stay.id, KIND_STAY_CHECKOUT)
     }
 

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.FlightLand
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -37,43 +38,40 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.travelplanner.app.data.Flight
+import com.travelplanner.app.data.Itinerary
 import com.travelplanner.app.data.Stay
 import com.travelplanner.app.reference.ReferenceData
 
 sealed class TimelineEntry(val at: Long, val zone: String, val tripId: Long) {
     class GoToAirport(val flight: Flight) : TimelineEntry(flight.departureMillis - flight.remindMinutes * 60_000L, flight.departureZone, flight.tripId)
     class FlightEntry(val flight: Flight) : TimelineEntry(flight.departureMillis, flight.departureZone, flight.tripId)
+    /** Пересадка: прилетели и улетаем из того же аэропорта — ехать никуда не нужно. */
+    class Layover(val flight: Flight, val prev: Flight) : TimelineEntry(prev.arrivalMillis!! + 1, flight.departureZone, flight.tripId)
     class Transfer(val flight: Flight, val stay: Stay) : TimelineEntry((flight.arrivalMillis ?: flight.departureMillis) + 1, flight.arrivalZone, flight.tripId)
     /** Заселение показываем не раньше прилёта: если прилетаем после 14:00 — сразу после прилёта. */
     class CheckIn(val stay: Stay, at: Long = stay.checkInMillis) : TimelineEntry(at, stay.zone, stay.tripId)
-    class CheckOut(val stay: Stay) : TimelineEntry(stay.checkOutMillis, stay.zone, stay.tripId)
+    /** Выезд из отеля: раньше расчётного часа, если до него нужно ехать на вокзал/в аэропорт. */
+    class CheckOut(val stay: Stay, at: Long = stay.checkOutMillis) : TimelineEntry(at, stay.zone, stay.tripId)
 }
 
 object Timeline {
-    fun build(flights: List<Flight>, stays: List<Stay>): List<TimelineEntry> {
+    fun build(flights: List<Flight>, stays: List<Stay>, ref: ReferenceData): List<TimelineEntry> {
+        val it = Itinerary(ref)
         val list = mutableListOf<TimelineEntry>()
         flights.forEach { f ->
-            list += TimelineEntry.GoToAirport(f)
+            val prev = it.connectionFrom(f, flights, stays)
+            list += if (prev != null) TimelineEntry.Layover(f, prev) else TimelineEntry.GoToAirport(f)
             list += TimelineEntry.FlightEntry(f)
-            val arrival = f.arrivalMillis
-            if (arrival != null) {
-                // Едем из аэропорта в жильё, если заселение в течение суток после прилёта (или уже идёт)
-                stays.firstOrNull { s ->
-                    s.tripId == f.tripId &&
-                        ((s.checkInMillis >= arrival - 3_600_000L && s.checkInMillis - arrival < 24 * 3_600_000L) ||
-                            (s.checkInMillis <= arrival && s.checkOutMillis > arrival))
-                }?.let { list += TimelineEntry.Transfer(f, it) }
-            }
         }
         stays.forEach { s ->
-            val arrival = flights.filter { it.tripId == s.tripId }
-                .mapNotNull { it.arrivalMillis }
-                .filter { it > s.checkInMillis && it < s.checkOutMillis && it - s.checkInMillis < 24 * 3_600_000L }
-                .maxOrNull()
-            list += TimelineEntry.CheckIn(s, arrival?.plus(2) ?: s.checkInMillis)
-            list += TimelineEntry.CheckOut(s)
+            val arrival = it.arrivalToStay(s, flights, stays)
+            if (arrival != null) list += TimelineEntry.Transfer(arrival, s)
+            // Заселение показываем не раньше прилёта в город отеля
+            val at = arrival?.arrivalMillis?.takeIf { a -> a > s.checkInMillis }?.plus(2) ?: s.checkInMillis
+            list += TimelineEntry.CheckIn(s, at)
+            list += TimelineEntry.CheckOut(s, it.leaveStayAt(s, flights, stays) ?: s.checkOutMillis)
         }
-        return list.sortedBy { it.at }
+        return list.sortedBy { e -> e.at }
     }
 
     fun next(entries: List<TimelineEntry>, now: Long = System.currentTimeMillis()): TimelineEntry? =
@@ -178,6 +176,17 @@ fun TimelineCard(
                         }
                     }
                 }
+                is TimelineEntry.Layover -> {
+                    val f = entry.flight
+                    val airport = ref.airport(f.fromIata)
+                    Header(Icons.Default.SyncAlt, Format.time(entry.at, entry.zone), "Пересадка: ${airport?.city ?: f.fromIata}")
+                    Text(
+                        "${Format.duration(f.departureMillis - entry.prev.arrivalMillis!!)} до вылета ${f.title()} в ${Format.time(f.departureMillis, f.departureZone)}" +
+                            (f.departureTerminal.takeIf { t -> t.isNotBlank() }?.let { t -> ", терминал $t" } ?: ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text("Из аэропорта выходить не нужно — проверьте табло и выход на посадку", style = MaterialTheme.typography.bodySmall)
+                }
                 is TimelineEntry.Transfer -> {
                     val s = entry.stay
                     Header(
@@ -212,8 +221,12 @@ fun TimelineCard(
                 is TimelineEntry.CheckOut -> {
                     val s = entry.stay
                     Column(Modifier.clickable { onEditStay(s) }) {
-                        Header(Icons.AutoMirrored.Filled.Logout, Format.time(s.checkOutMillis, s.zone), "Выезд: ${s.name}")
-                        Text("Освободить номер до ${Format.time(s.checkOutMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
+                        Header(Icons.AutoMirrored.Filled.Logout, Format.time(entry.at, s.zone), "Выезд: ${s.name}")
+                        Text(
+                            if (entry.at < s.checkOutMillis) "Расчётный час — ${Format.time(s.checkOutMillis, s.zone)}, но выезжать нужно раньше. Не забудьте вещи и сдать ключи."
+                            else "Освободить номер до ${Format.time(s.checkOutMillis, s.zone)}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 }
             }

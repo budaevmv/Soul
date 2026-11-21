@@ -111,6 +111,7 @@ class TripAssemblyTest {
         val fmt = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
         fun t(ms: Long, z: String) = java.time.Instant.ofEpochMilli(ms).atZone(ZoneId.of(z)).format(fmt)
         groups.forEach { g ->
+            println("PLAN:\n" + timeline(g).joinToString("\n") { "  " + describe(it) })
             println("TRIP: ${TripGrouping(ref).title(g, ZoneId.of("Europe/Moscow"))}")
             g.sortedBy { it.start }.forEach {
                 when (it) {
@@ -124,5 +125,42 @@ class TripAssemblyTest {
                 }
             }
         }
+    }
+
+    /** План по дням из собранной поездки (id как после сохранения в базу). */
+    private fun timeline(trip: List<PlanItem>): List<com.travelplanner.app.ui.TimelineEntry> {
+        var id = 1L
+        val flights = trip.filterIsInstance<PlanItem.Move>().map { it.flight.copy(id = id++, tripId = 1) }
+        val stays = trip.filterIsInstance<PlanItem.Hotel>().map { it.stay.copy(id = id++, tripId = 1) }
+        return com.travelplanner.app.ui.Timeline.build(flights, stays, ref)
+    }
+
+    private fun describe(e: com.travelplanner.app.ui.TimelineEntry): String {
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
+        val time = java.time.Instant.ofEpochMilli(e.at).atZone(ZoneId.of(e.zone)).format(fmt)
+        return time + " " + when (e) {
+            is com.travelplanner.app.ui.TimelineEntry.GoToAirport -> "ВЫЕЗД ${e.flight.flightNumber}"
+            is com.travelplanner.app.ui.TimelineEntry.Layover -> "ПЕРЕСАДКА ${e.flight.fromIata} -> ${e.flight.flightNumber}"
+            is com.travelplanner.app.ui.TimelineEntry.FlightEntry -> "РЕЙС ${e.flight.flightNumber}"
+            is com.travelplanner.app.ui.TimelineEntry.Transfer -> "В ОТЕЛЬ ${e.stay.name} после ${e.flight.flightNumber}"
+            is com.travelplanner.app.ui.TimelineEntry.CheckIn -> "ЗАСЕЛЕНИЕ ${e.stay.name}"
+            is com.travelplanner.app.ui.TimelineEntry.CheckOut -> "ВЫЕЗД ИЗ ${e.stay.name}"
+        }
+    }
+
+    @Test
+    fun timelineHandlesConnectionsAndHotelTransfers() {
+        val p = parser()
+        val (groups, _) = assemble(listOf(Samples.POBEDA, Samples.HOTEL, Samples.RZD, Samples.AGENCY).map { p.parse(it) })
+        val plan = timeline(groups.single()).map { describe(it) }
+        println(plan.joinToString("\n"))
+        // Дубай — пересадка: без «выезда в аэропорт»
+        org.junit.Assert.assertTrue(plan.any { it.contains("ПЕРЕСАДКА DXB -> 342") })
+        org.junit.Assert.assertTrue(plan.none { it.contains("ВЫЕЗД 342") })
+        // В Минске пересадка с поезда на самолёт: в аэропорт ехать нужно
+        org.junit.Assert.assertTrue(plan.any { it.contains("ВЫЕЗД 1716") })
+        // В отель (Москва) — только после прилёта в Москву, заселение сразу после прилёта
+        assertEquals(listOf("В ОТЕЛЬ Test Hills Hotel после 6864"), plan.filter { it.contains("В ОТЕЛЬ") }.map { it.substringAfter(" ").substringAfter(" ") })
+        org.junit.Assert.assertTrue(plan.any { it.startsWith("21.11 23:20 ЗАСЕЛЕНИЕ") })
     }
 }

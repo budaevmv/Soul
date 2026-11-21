@@ -22,7 +22,8 @@ class CalendarSync(private val context: Context, private val ref: ReferenceData)
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
 
-    fun upsertFlight(f: Flight): Long? {
+    /** [connection] — пересадка: напоминание за час до вылета вместо «пора в аэропорт». */
+    fun upsertFlight(f: Flight, connection: Boolean = false): Long? {
         if (f.isTrain) return upsertTrain(f)
         val from = ref.airport(f.fromIata)
         val to = ref.airport(f.toIata)
@@ -36,6 +37,7 @@ class CalendarSync(private val context: Context, private val ref: ReferenceData)
             if (f.bookingRef.isNotBlank()) appendLine("Бронирование: ${f.bookingRef}")
             if (f.seat.isNotBlank()) appendLine("Место: ${f.seat}")
             if (f.passenger.isNotBlank()) appendLine("Пассажир: ${f.passenger}")
+            if (connection) appendLine("Пересадка — из аэропорта выходить не нужно")
             append("Добавлено приложением «Мои поездки»")
         }
         val end = f.arrivalMillis?.takeIf { it > f.departureMillis } ?: (f.departureMillis + 2 * 3_600_000L)
@@ -48,7 +50,7 @@ class CalendarSync(private val context: Context, private val ref: ReferenceData)
             end = end,
             startZone = f.departureZone,
             endZone = f.arrivalZone,
-            reminderMinutes = listOf(f.remindMinutes, 24 * 60),
+            reminderMinutes = if (connection) listOf(60) else listOf(f.remindMinutes, 24 * 60),
         )
     }
 

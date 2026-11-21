@@ -11,6 +11,7 @@ class TripRepository(
     private val scheduler: ReminderScheduler,
     private val calendar: CalendarSync,
     private val settings: Settings,
+    private val itinerary: Itinerary,
 ) {
     fun trips() = db.trips().observeAll()
     fun trip(id: Long) = db.trips().observe(id)
@@ -38,21 +39,31 @@ class TripRepository(
 
     suspend fun saveFlight(flight: Flight): Long = withContext(Dispatchers.IO) {
         val id = if (flight.id == 0L) db.flights().insert(flight) else flight.id.also { db.flights().update(flight) }
-        var saved = flight.copy(id = id)
-        if (settings.calendarSync) {
-            val eventId = calendar.upsertFlight(saved)
-            if (eventId != saved.calendarEventId) {
-                saved = saved.copy(calendarEventId = eventId)
-                db.flights().update(saved)
-            }
-        }
-        scheduler.scheduleFlight(saved)
+        // Новый рейс может сделать соседний рейс пересадкой (или наоборот) — пересчитываем всю поездку
+        refreshTrip(flight.tripId)
         id
+    }
+
+    /** Пересчитывает напоминания и события календаря перелётов поездки с учётом пересадок. */
+    suspend fun refreshTrip(tripId: Long) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        val flights = db.flights().forTrip(tripId)
+        val stays = db.stays().forTrip(tripId)
+        flights.forEach { f ->
+            val connection = itinerary.connectionFrom(f, flights, stays) != null
+            if (settings.calendarSync) {
+                val eventId = calendar.upsertFlight(f, connection)
+                if (eventId != f.calendarEventId) db.flights().update(f.copy(calendarEventId = eventId))
+            }
+            scheduler.scheduleFlight(f, now, connection)
+        }
+        stays.forEach { s -> scheduler.scheduleStay(s, now, itinerary.leaveStayAt(s, flights, stays)) }
     }
 
     suspend fun deleteFlight(flight: Flight) = withContext(Dispatchers.IO) {
         removeFlightSideEffects(flight)
         db.flights().delete(flight)
+        refreshTrip(flight.tripId)
     }
 
     suspend fun saveStay(stay: Stay): Long = withContext(Dispatchers.IO) {
@@ -66,6 +77,8 @@ class TripRepository(
             }
         }
         scheduler.scheduleStay(saved)
+        // Отель между рейсами отменяет «пересадку»
+        refreshTrip(stay.tripId)
         id
     }
 
@@ -77,12 +90,23 @@ class TripRepository(
     /** Повторно ставит будильники (после перезагрузки) и, если нужно, досинхронизирует календарь. */
     suspend fun rescheduleAll(syncCalendar: Boolean = false) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        db.flights().upcoming(now).forEach { f ->
-            if (syncCalendar && settings.calendarSync) saveFlight(f) else scheduler.scheduleFlight(f, now)
+        val tripIds = (db.flights().upcoming(now).map { it.tripId } + db.stays().upcoming(now).map { it.tripId }).distinct()
+        tripIds.forEach { tripId ->
+            if (syncCalendar && settings.calendarSync) {
+                refreshTrip(tripId)
+                db.stays().forTrip(tripId).forEach { saveStayCalendarOnly(it) }
+            } else {
+                val flights = db.flights().forTrip(tripId)
+                val stays = db.stays().forTrip(tripId)
+                flights.forEach { f -> scheduler.scheduleFlight(f, now, itinerary.connectionFrom(f, flights, stays) != null) }
+                stays.forEach { s -> scheduler.scheduleStay(s, now, itinerary.leaveStayAt(s, flights, stays)) }
+            }
         }
-        db.stays().upcoming(now).forEach { s ->
-            if (syncCalendar && settings.calendarSync) saveStay(s) else scheduler.scheduleStay(s, now)
-        }
+    }
+
+    private suspend fun saveStayCalendarOnly(s: Stay) {
+        val eventId = calendar.upsertStay(s)
+        if (eventId != s.calendarEventId) db.stays().update(s.copy(calendarEventId = eventId))
     }
 
     private fun removeFlightSideEffects(f: Flight) {

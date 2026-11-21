@@ -101,7 +101,7 @@ fun TripsScreen(
         if (needed.isNotEmpty()) permissions.launch(needed.toTypedArray())
     }
 
-    val entries = remember(flights, stays) { Timeline.build(flights, stays) }
+    val entries = remember(flights, stays) { Timeline.build(flights, stays, c.ref) }
     val next = Timeline.next(entries, now)
     val tripTitles = trips.associate { it.id to it.title }
 
