@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.FlightLand
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Train
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
@@ -111,48 +112,57 @@ fun TimelineCard(
             when (entry) {
                 is TimelineEntry.GoToAirport -> {
                     val f = entry.flight
-                    val airport = ref.airport(f.fromIata)
-                    Header(Icons.Default.DirectionsCar, Format.time(entry.at, entry.zone), "Выезд в аэропорт")
-                    Text(
-                        (airport?.title ?: f.fromIata) + (f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        "Вылет ${f.airlineCode} ${f.flightNumber} в ${Format.time(f.departureMillis, f.departureZone)} · за ${Format.duration(f.remindMinutes * 60_000L)} до вылета",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    ref.airline(f.airlineCode)?.let {
-                        Text("Регистрация в аэропорту закрывается за ${it.airportCheckinCloseMinutes} мин", style = MaterialTheme.typography.bodySmall)
+                    if (f.isTrain) {
+                        Header(Icons.Default.DirectionsCar, Format.time(entry.at, entry.zone), "Выезд на вокзал")
+                        Text(f.fromName, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "${f.title()} отправляется в ${Format.time(f.departureMillis, f.departureZone)} · за ${Format.duration(f.remindMinutes * 60_000L)} до отправления",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        val airport = ref.airport(f.fromIata)
+                        Header(Icons.Default.DirectionsCar, Format.time(entry.at, entry.zone), "Выезд в аэропорт")
+                        Text(
+                            (airport?.title ?: f.fromIata) + (f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "Вылет ${f.title()} в ${Format.time(f.departureMillis, f.departureZone)} · за ${Format.duration(f.remindMinutes * 60_000L)} до вылета",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        ref.airline(f.airlineCode)?.let {
+                            Text("Регистрация в аэропорту закрывается за ${it.airportCheckinCloseMinutes} мин", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     Chips {
-                        ActionChip(Icons.Default.Map, "Маршрут") { openMaps(context, airportQuery(ref, f.fromIata)) }
+                        ActionChip(Icons.Default.Map, "Маршрут") { openMaps(context, f.departurePlaceQuery(ref)) }
                     }
                 }
                 is TimelineEntry.FlightEntry -> {
                     val f = entry.flight
-                    val airline = ref.airline(f.airlineCode)
+                    val airline = if (f.isTrain) null else ref.airline(f.airlineCode)
                     Column(Modifier.clickable { onEditFlight(f) }) {
                         Header(
-                            Icons.Default.Flight, Format.time(f.departureMillis, f.departureZone),
-                            "${f.airlineCode} ${f.flightNumber}" + (airline?.let { " · ${it.name}" } ?: ""),
+                            if (f.isTrain) Icons.Default.Train else Icons.Default.Flight,
+                            Format.time(f.departureMillis, f.departureZone),
+                            f.title() + (airline?.let { " · ${it.name}" } ?: ""),
                         )
                         val arrival = f.arrivalMillis
-                        Text(
-                            "${ref.cityName(f.fromIata)} (${f.fromIata}) → ${ref.cityName(f.toIata)} (${f.toIata})",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
+                        Text("${f.fromLabel(ref)} → ${f.toLabel(ref)}", style = MaterialTheme.typography.bodyLarge)
                         if (arrival != null) {
                             val sameDay = Format.shortDate(arrival, f.arrivalZone) == Format.shortDate(f.departureMillis, f.departureZone)
                             Text(
-                                "Прилёт ${if (sameDay) "" else Format.shortDate(arrival, f.arrivalZone) + " "}в ${Format.time(arrival, f.arrivalZone)} по местному" +
-                                    " · в пути ${Format.duration(arrival - f.departureMillis)}",
+                                (if (f.isTrain) "Прибытие " else "Прилёт ") +
+                                    (if (sameDay) "" else Format.shortDate(arrival, f.arrivalZone) + " ") +
+                                    "в ${Format.time(arrival, f.arrivalZone)} по местному · в пути ${Format.duration(arrival - f.departureMillis)}",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
                         val details = listOfNotNull(
                             f.departureTerminal.takeIf { it.isNotBlank() }?.let { "Терминал $it" },
+                            f.car.takeIf { it.isNotBlank() }?.let { "Вагон $it" },
                             f.seat.takeIf { it.isNotBlank() }?.let { "Место $it" },
-                            f.bookingRef.takeIf { it.isNotBlank() }?.let { "Бронь $it" },
+                            f.bookingRef.takeIf { it.isNotBlank() }?.let { (if (f.isTrain) "Заказ " else "Бронь ") + it },
                         )
                         if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                         if (Format.utcOffset(f.departureZone) != Format.utcOffset(f.arrivalZone)) {
@@ -165,7 +175,11 @@ fun TimelineCard(
                 }
                 is TimelineEntry.Transfer -> {
                     val s = entry.stay
-                    Header(Icons.Default.FlightLand, Format.time(entry.at, entry.zone), "Из аэропорта — в «${s.name}»")
+                    Header(
+                        if (entry.flight.isTrain) Icons.Default.Train else Icons.Default.FlightLand,
+                        Format.time(entry.at, entry.zone),
+                        (if (entry.flight.isTrain) "С вокзала" else "Из аэропорта") + " — в «${s.name}»",
+                    )
                     if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium)
                     Text("Заселение с ${Format.time(s.checkInMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
                     Chips {

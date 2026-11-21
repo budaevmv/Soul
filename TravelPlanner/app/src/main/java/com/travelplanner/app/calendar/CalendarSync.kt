@@ -23,6 +23,7 @@ class CalendarSync(private val context: Context, private val ref: ReferenceData)
         }
 
     fun upsertFlight(f: Flight): Long? {
+        if (f.isTrain) return upsertTrain(f)
         val from = ref.airport(f.fromIata)
         val to = ref.airport(f.toIata)
         val title = "✈ ${f.airlineCode} ${f.flightNumber} ${from?.city ?: f.fromIata} → ${to?.city ?: f.toIata}"
@@ -43,6 +44,26 @@ class CalendarSync(private val context: Context, private val ref: ReferenceData)
             title = title,
             location = location,
             description = description,
+            start = f.departureMillis,
+            end = end,
+            startZone = f.departureZone,
+            endZone = f.arrivalZone,
+            reminderMinutes = listOf(f.remindMinutes, 24 * 60),
+        )
+    }
+
+    private fun upsertTrain(f: Flight): Long? {
+        val end = f.arrivalMillis?.takeIf { it > f.departureMillis } ?: (f.departureMillis + 2 * 3_600_000L)
+        return upsert(
+            existingId = f.calendarEventId,
+            title = "🚆 Поезд ${f.flightNumber} ${f.fromName} → ${f.toName}",
+            location = "Вокзал: ${f.fromName}",
+            description = buildString {
+                if (f.car.isNotBlank()) appendLine("Вагон: ${f.car}")
+                if (f.seat.isNotBlank()) appendLine("Место: ${f.seat}")
+                if (f.bookingRef.isNotBlank()) appendLine("Заказ: ${f.bookingRef}")
+                append("Добавлено приложением «Мои поездки»")
+            },
             start = f.departureMillis,
             end = end,
             startZone = f.departureZone,

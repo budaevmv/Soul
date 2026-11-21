@@ -18,7 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.travelplanner.app.ui.FlightEditScreen
-import com.travelplanner.app.ui.ImportScreen
+import com.travelplanner.app.ui.BulkImportScreen
 import com.travelplanner.app.ui.StayEditScreen
 import com.travelplanner.app.ui.TripScreen
 import com.travelplanner.app.ui.TripsScreen
@@ -27,8 +27,8 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    /** Файл, которым поделились из другого приложения. */
-    private var sharedUri by mutableStateOf<Uri?>(null)
+    /** Файлы, которыми поделились из другого приложения. */
+    private var sharedUris by mutableStateOf<List<Uri>>(emptyList())
     private var openTripId by mutableStateOf<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             TravelTheme {
                 val nav = rememberNavController()
-                LaunchedEffect(sharedUri) {
-                    if (sharedUri != null) nav.navigate("import/0?shared=true")
+                LaunchedEffect(sharedUris) {
+                    if (sharedUris.isNotEmpty()) nav.navigate("import/0?shared=true")
                 }
                 LaunchedEffect(openTripId) {
                     openTripId?.let {
@@ -84,17 +84,19 @@ class MainActivity : ComponentActivity() {
                         ),
                     ) { e ->
                         val shared = e.arguments!!.getBoolean("shared")
-                        val uri = if (shared) sharedUri else null
-                        ImportScreen(
-                            c, e.arguments!!.getLong("trip"), uri,
+                        val uris = if (shared) sharedUris else emptyList()
+                        BulkImportScreen(
+                            c, e.arguments!!.getLong("trip"), uris,
                             onBack = {
-                                sharedUri = null
+                                sharedUris = emptyList()
                                 nav.popBackStack()
                             },
-                            onSaved = { tripId ->
-                                sharedUri = null
+                            onOpenTrip = { tripId ->
+                                sharedUris = emptyList()
                                 nav.navigate("trip/$tripId") { popUpTo("trips") }
                             },
+                            onFixFlight = { tripId -> nav.navigate("flight/$tripId/0") },
+                            onFixStay = { tripId -> nav.navigate("stay/$tripId/0") },
                         )
                     }
                 }
@@ -114,15 +116,23 @@ class MainActivity : ComponentActivity() {
             openTripId = tripId
             return
         }
-        sharedUri = when (intent.action) {
-            Intent.ACTION_SEND -> if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+        sharedUris = when (intent.action) {
+            Intent.ACTION_SEND -> listOfNotNull(
+                if (Build.VERSION.SDK_INT >= 33) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                } ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let { saveSharedText(it) },
+            )
+            Intent.ACTION_SEND_MULTIPLE -> if (Build.VERSION.SDK_INT >= 33) {
+                intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
             } else {
                 @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            } ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.let { saveSharedText(it) }
-            Intent.ACTION_VIEW -> intent.data
-            else -> null
+                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+            }
+            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            else -> emptyList()
         }
     }
 

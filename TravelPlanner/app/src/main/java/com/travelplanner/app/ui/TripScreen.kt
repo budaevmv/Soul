@@ -23,13 +23,14 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Train
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -89,6 +90,14 @@ fun TripScreen(
                 actions = {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Меню") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Добавить перелёт вручную") }, leadingIcon = { Icon(Icons.Default.Flight, null) }, onClick = {
+                            menu = false
+                            onEditFlight(0)
+                        })
+                        DropdownMenuItem(text = { Text("Добавить жильё вручную") }, leadingIcon = { Icon(Icons.Default.Hotel, null) }, onClick = {
+                            menu = false
+                            onEditStay(0)
+                        })
                         DropdownMenuItem(text = { Text("Переименовать") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = {
                             menu = false
                             rename = true
@@ -102,24 +111,12 @@ fun TripScreen(
             )
         },
         floatingActionButton = {
-            if (tab == 0) {
-                Column(horizontalAlignment = Alignment.End) {
-                    DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
-                        DropdownMenuItem(text = { Text("Загрузить билет / бронь") }, leadingIcon = { Icon(Icons.Default.UploadFile, null) }, onClick = {
-                            addMenu = false
-                            onImport()
-                        })
-                        DropdownMenuItem(text = { Text("Перелёт вручную") }, leadingIcon = { Icon(Icons.Default.Flight, null) }, onClick = {
-                            addMenu = false
-                            onEditFlight(0)
-                        })
-                        DropdownMenuItem(text = { Text("Жильё (из файла брони или вручную)") }, leadingIcon = { Icon(Icons.Default.Hotel, null) }, onClick = {
-                            addMenu = false
-                            onEditStay(0)
-                        })
-                    }
-                    FloatingActionButton(onClick = { addMenu = true }) { Icon(Icons.Default.Add, "Добавить") }
-                }
+            if (tab == 0 || tab == 3) {
+                ExtendedFloatingActionButton(
+                    onClick = onImport,
+                    icon = { Icon(Icons.Default.UploadFile, null) },
+                    text = { Text("Загрузить документы") },
+                )
             }
         },
     ) { padding ->
@@ -132,7 +129,7 @@ fun TripScreen(
                 0 -> PlanTab(c, flights, stays, onEditFlight, onEditStay)
                 1 -> AirlinesTab(c.ref, flights)
                 2 -> CountriesTab(c.ref, flights)
-                3 -> PackingTab(c.ref, tripId, flights, stays)
+                3 -> PackingTab(c, tripId, flights)
             }
         }
     }
@@ -218,9 +215,9 @@ private fun PlanTab(
 
 @Composable
 private fun AirlinesTab(ref: ReferenceData, flights: List<Flight>) {
-    val codes = flights.map { it.airlineCode }.distinct()
+    val codes = flights.filter { !it.isTrain }.map { it.airlineCode }.distinct()
     LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (codes.isEmpty()) item { Text("Добавьте перелёты — здесь появятся правила ваших авиакомпаний.") }
+        if (codes.isEmpty()) item { Text("В поездке нет перелётов — здесь появятся правила ваших авиакомпаний.") }
         items(codes) { code -> AirlineCard(code, ref.airline(code)) }
         item { GeneralRulesCard() }
     }
@@ -229,8 +226,10 @@ private fun AirlinesTab(ref: ReferenceData, flights: List<Flight>) {
 /** Страны назначения: прилёты, кроме страны «дома» (первого вылета). Для внутренних поездок — домашняя страна. */
 fun destinationCountries(ref: ReferenceData, flights: List<Flight>): List<String> {
     val sorted = flights.sortedBy { it.departureMillis }
-    val home = sorted.firstOrNull()?.let { ref.airport(it.fromIata)?.country }
-    val arrivals = sorted.mapNotNull { ref.airport(it.toIata)?.country }.distinct()
+    fun countryFrom(f: Flight) = if (f.isTrain) ref.citiesIn(f.fromName).firstOrNull()?.country else ref.airport(f.fromIata)?.country
+    fun countryTo(f: Flight) = if (f.isTrain) ref.citiesIn(f.toName).firstOrNull()?.country else ref.airport(f.toIata)?.country
+    val home = sorted.firstOrNull()?.let { countryFrom(it) }
+    val arrivals = sorted.mapNotNull { countryTo(it) }.distinct()
     val abroad = arrivals.filter { it != home }
     return abroad.ifEmpty { listOfNotNull(home) }
 }
@@ -257,28 +256,36 @@ private fun CountriesTab(ref: ReferenceData, flights: List<Flight>) {
 }
 
 @Composable
-private fun PackingTab(ref: ReferenceData, tripId: Long, flights: List<Flight>, stays: List<Stay>) {
+private fun PackingTab(c: AppContainer, tripId: Long, flights: List<Flight>) {
     val context = LocalContext.current
+    val ref = c.ref
+    val docs by c.repository.documents(tripId).collectAsState(initial = emptyList())
     val countries = destinationCountries(ref, flights)
     val checklist = remember(countries) {
         (ReferenceData.genericChecklist + countries.flatMap { ref.country(it)?.take.orEmpty() }).distinct()
     }
-    val docs = (flights.mapNotNull { f -> f.attachmentPath?.let { "Билет ${f.airlineCode} ${f.flightNumber}" to it } } +
-        stays.mapNotNull { s -> s.attachmentPath?.let { "Бронь: ${s.name}" to it } }).distinctBy { it.second }
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Документы (доступны офлайн)", style = MaterialTheme.typography.titleMedium)
                     if (docs.isEmpty()) Text("Загруженные билеты и брони появятся здесь.", style = MaterialTheme.typography.bodyMedium)
-                    docs.forEach { (title, path) ->
+                    docs.forEach { d ->
                         Row(
-                            Modifier.fillMaxWidth().clickable { openDocument(context, File(path)) }.padding(vertical = 8.dp),
+                            Modifier.fillMaxWidth().clickable { openDocument(context, File(d.path)) }.padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.Description, null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                when (d.kind) {
+                                    "FLIGHT" -> Icons.Default.Flight
+                                    "TRAIN" -> Icons.Default.Train
+                                    "HOTEL" -> Icons.Default.Hotel
+                                    else -> Icons.Default.Description
+                                },
+                                null, tint = MaterialTheme.colorScheme.primary,
+                            )
                             Spacer(Modifier.width(8.dp))
-                            Text(title)
+                            Text(d.title)
                         }
                     }
                 }

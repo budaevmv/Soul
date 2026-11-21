@@ -8,6 +8,7 @@ import com.travelplanner.app.data.AppDatabase
 import com.travelplanner.app.data.Settings
 import com.travelplanner.app.data.TripRepository
 import com.travelplanner.app.importer.TicketImporter
+import com.travelplanner.app.importer.TripAssembler
 import com.travelplanner.app.reference.ReferenceData
 import com.travelplanner.app.reminders.ReminderReceiver
 import com.travelplanner.app.reminders.ReminderScheduler
@@ -32,4 +33,9 @@ class AppContainer(context: Context) {
     val calendar by lazy { CalendarSync(context, ref) }
     val repository by lazy { TripRepository(db, scheduler, calendar, settings) }
     val importer by lazy { TicketImporter(context, ref) }
+    val assembler by lazy { TripAssembler(importer, repository, ref, settings) }
+
+    /** Черновики для редакторов: пункты, распознанные не полностью. */
+    var draftFlight: com.travelplanner.app.ui.FlightForm? = null
+    var draftStay: com.travelplanner.app.ui.StayForm? = null
 }

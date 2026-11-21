@@ -113,14 +113,11 @@ fun TripsScreen(
             )
         },
         floatingActionButton = {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SmallFloatingActionButton(onClick = { showNewTrip = true }) { Icon(Icons.Default.Add, "Новая поездка") }
-                ExtendedFloatingActionButton(
-                    onClick = onImport,
-                    icon = { Icon(Icons.Default.UploadFile, null) },
-                    text = { Text("Загрузить билет") },
-                )
-            }
+            ExtendedFloatingActionButton(
+                onClick = onImport,
+                icon = { Icon(Icons.Default.UploadFile, null) },
+                text = { Text("Загрузить документы") },
+            )
         },
     ) { padding ->
         LazyColumn(
@@ -203,9 +200,10 @@ private fun EmptyState() {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Пока нет поездок", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Нажмите «Загрузить билет» и выберите PDF маршрутной квитанции, скриншот или фото посадочного. " +
-                    "Приложение распознает рейсы, добавит их в календарь и напомнит за 3 часа, что пора выезжать в аэропорт.\n\n" +
-                    "Можно также «Поделиться» билетом из почты или мессенджера прямо в это приложение.",
+                "Нажмите «Загрузить документы» и отметьте сразу все файлы: авиабилеты, ЖД-билеты, брони отелей " +
+                    "(PDF, скриншоты, фото). Приложение само поймёт, что где, соберёт поездку с маршрутом по дням, " +
+                    "добавит всё в календарь и напомнит, когда выезжать в аэропорт или на вокзал.\n\n" +
+                    "Можно также «Поделиться» файлами из почты или мессенджера прямо в это приложение.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -217,7 +215,7 @@ private fun TripCard(trip: Trip, flights: List<Flight>, stays: List<Stay>, c: Ap
     val starts = (flights.map { it.departureMillis to it.departureZone } + stays.map { it.checkInMillis to it.zone }).minByOrNull { it.first }
     val ends = (flights.map { (it.arrivalMillis ?: it.departureMillis) to it.arrivalZone } + stays.map { it.checkOutMillis to it.zone }).maxByOrNull { it.first }
     val route = flights.sortedBy { it.departureMillis }.let { fs ->
-        if (fs.isEmpty()) "" else (listOf(fs.first().fromIata) + fs.map { it.toIata }).map { c.ref.cityName(it) }
+        if (fs.isEmpty()) "" else (listOf(fs.first().fromCity(c.ref)) + fs.map { it.toCity(c.ref) })
             .fold(mutableListOf<String>()) { acc, s -> if (acc.lastOrNull() != s) acc += s; acc }.joinToString(" → ")
     }
     val finished = ends != null && ends.first < now

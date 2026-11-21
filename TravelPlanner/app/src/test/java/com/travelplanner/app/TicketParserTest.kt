@@ -24,7 +24,7 @@ class TicketParserTest {
         val names = mutableMapOf<String, String>()
         ref.airports.values.forEach { if (it.name.length >= 5 && it.name != it.city) names[it.name.uppercase()] = it.iata }
         ref.airports.values.groupBy { it.city }.forEach { (city, l) -> if (l.size == 1 && city.length >= 4) names[city.uppercase()] = l.first().iata }
-        return TicketParser(ref.airports.keys, ref.airlines.keys, names, today)
+        return TicketParser(ref.airports.keys, ref.airlines.keys, names, today) { t -> ref.citiesIn(t).map { it.city } }
     }
 
     @Test
@@ -86,31 +86,7 @@ class TicketParserTest {
     /** Квитанция агентства на рейс «Победы» (формат с таблицей; данные вымышленные). */
     @Test
     fun pobedaAgencyItinerary() {
-        val text = """
-                                                  Electronic ticket
-                                                  Дата оформления заказа: 20.11.2026
-             Пассажир                Паспорт РФ          Номер заказа          Номер электронного билета
-             Passenger               Passport            Order number          E-ticket number
-             IVANOV PETR
-             SERGEEVICH              1234567890          40000001              4250000000001
-             Saratov → Moscow        Отправление         Местное время                       Прибытие
-             1 h 50 min              Departure           Local time                          Arrival
-             DP-6864 Победа          Saratov             22:30           23:20               Moscow
-             Номер для онлайн-регистрации / Check-in:
-                                     Gagarin GSV         21 NOV 2026     21 NOV 2026         Sheremetyevo SVO
-             QWRT2K
-             Багаж / Baggage allowance: 10 kg
-            Маршрутная квитанция электронного билета                                          Победа
-            Клиент
-                                                                                    Код бронирования
-            ФИО                    Дата рождения    Документ      Номер билета      Категория
-            IVANOV PETR            01.01.1990       1234567890    4250000000001     Взрослый      QWRT2K
-              Саратов           Москва
-              Номер рейса       Вылет                     В пути         Прилёт
-              DP6864            21 ноября 2026 22:30      01 ч 50 мин    21 ноября 2026 23:20
-                                Саратов                                  Москва
-                                GSV | Гагарин                            SVO | Шереметьево | D
-        """.trimIndent()
+        val text = Samples.POBEDA
         val doc = parser().parse(text)
         assertEquals(1, doc.flights.size)
         val f = doc.flights.single()
@@ -154,44 +130,7 @@ class TicketParserTest {
     /** Квитанция агентства с блоками ВЫЛЕТ/ПРИЛЁТ и пересадкой (данные вымышленные). */
     @Test
     fun agencyReceiptWithDepartureArrivalBlocks() {
-        val text = """
-                           ООО "Тест Тревел", Тел: +7 (495) 000-00-00                       БРОНИРОВАНИЕ
-                           IATA 90000000                                                    ПОДТВЕРЖДЕНО
-                           КВИТАНЦИЯ ПО ЗАКАЗУ /
-                           ЭЛ. БИЛЕТ
-                           ФАМИЛИЯ И ИМЯ ПАССАЖИРА /                      ДАТА / ЗАКАЗ № / ТЕЛЕФОН ПОКУПАТЕЛЯ
-                           ДОКУМЕНТ                               20 НОЯБРЯ 2026 Г., 17:30 / F20000000000 /
-                           IVANOV PETR /                                        +7900***00
-                           700000000
-             ВЫЛЕТ:        22 НОЯБ. 2026 Г.                 АЭРОПОРТ МИНСК
-                           23:50                            МИНСК, БЕЛАРУСЬ                     MSQ
-            Рейс#          FZ-1716                          Эконом (KLSOSRU1)
-       Эл. билет#          1760000000000                    Осуществляет авиакомпания FlyDubai
-          Бронь#           QWE7RT;ASD8FG, "FZ"              Ручная кладь: 1 багажное место 7кг на пассажира 55x38x20
-           Статус          HK                               Багаж: 1 багажное место 30кг на пассажира
-           ПРИЛЁТ:         23 НОЯБ. 2026 Г.                 АЭРОПОРТ ДУБАЙ , ТЕРМИНАЛ 3
-                           8:00                             ДУБАЙ, ОАЭ                           DXB
-             ВЫЛЕТ:        23 НОЯБ. 2026 Г.                 АЭРОПОРТ ДУБАЙ , ТЕРМИНАЛ 3
-                           10:40                            ДУБАЙ, ОАЭ                           DXB
-            Рейс#          EK-342                           Эконом (KLSOSRU1)
-          Бронь#           QWE7RT;ASD8FG, "EK"              Ручная кладь: 1 багажное место 7кг на пассажира 55x38x22
-           Статус          HK                               Место на борту: 60A
-           ПРИЛЁТ:         23 НОЯБ. 2026 Г.                 АЭРОПОРТ КУАЛА-ЛУМПУР , ТЕРМИНАЛ 1
-                           21:55                            КУАЛА-ЛУМПУР, МАЛАЙЗИЯ               KUL
-            ТАКСА B8                                               413.00   RUB
-            ТАКСА ZR                                               113.00   RUB
-            РАСЧЕТ ТАРИФА MSQ FZ X/DXB EK KUL552.06NUC552.06END ROE0.891192
-            DEPARTURE:               NOV 22, 2026                           MINSK AIRPORT
-                                     23:50                                  MINSK, BY            MSQ
-                   Flight#           FZ-1716                                Economy (KLSOSRU1)
-                 ARRIVAL:            NOV 23, 2026                           DUBAI AIRPORT , TERMINAL 3
-                                     8:00                                   DUBAI, AE            DXB
-            DEPARTURE:               NOV 23, 2026                           DUBAI AIRPORT , TERMINAL 3
-                                     10:40                                  DUBAI, AE            DXB
-                   Flight#           EK-342                                 Economy (KLSOSRU1)
-                 ARRIVAL:            NOV 23, 2026                           KUALA LUMPUR AIRPORT , TERMINAL 1
-                                     21:55                                  KUALA LUMPUR, MY     KUL
-        """.trimIndent()
+        val text = Samples.AGENCY
         val doc = parser().parse(text)
         assertEquals(2, doc.flights.size)
         val (a, b) = doc.flights
@@ -215,27 +154,7 @@ class TicketParserTest {
     /** Подтверждение брони отеля с датами «в колонках» (данные вымышленные). */
     @Test
     fun hotelVoucherWithColumnDates() {
-        val text = """
-                                                                  Команда поддержки 24/7
-                                     8 800 000-00-00 по России, +7 499 000-00-00 из-за рубежа
-                                                   Заезд                  Отъезд            1 номер
-            Бронирование от 20.11.2026
-            № 400000000001
-            № партнера 1000000
-                                                   21           –          22                  1
-                                                  ноября                 ноября               ночь
-                                                  с 14:00                до 12:00
-
-            Test Hills Hotel
-
-                            Адрес отеля
-                            улица Тестовая, д.1, Москва
-                            Телефон                 Почта
-                Отель на
-                 карте
-                            +79000000000            hotel@example.com
-            Вы забронировали Стандарт одноместный
-        """.trimIndent()
+        val text = Samples.HOTEL
         val doc = parser().parse(text)
         assertTrue(doc.flights.isEmpty())
         val stay = doc.stay!!
@@ -247,6 +166,28 @@ class TicketParserTest {
         assertEquals(LocalTime.of(12, 0), stay.checkOutTime)
         assertEquals("+79000000000", stay.phone)
         assertEquals("400000000001", doc.bookingRef)
+    }
+
+    /** Контрольный купон РЖД (данные вымышленные). */
+    @Test
+    fun rzdETicket() {
+        val text = Samples.RZD
+        val doc = parser().parse(text)
+        assertTrue("не должно быть авиарейсов", doc.flights.isEmpty())
+        assertNull(doc.stay)
+        val t = doc.trains.single()
+        assertEquals("717МА", t.number)
+        assertEquals("МОСКВА БЕЛОРУССКАЯ", t.from)
+        assertEquals("МИНСК", t.to)
+        assertEquals(LocalDate.of(2026, 11, 22), t.depDate)
+        assertEquals(LocalTime.of(6, 18), t.depTime)
+        assertEquals(LocalDate.of(2026, 11, 22), t.arrDate)
+        assertEquals(LocalTime.of(13, 24), t.arrTime)
+        assertEquals("2", t.car)
+        assertEquals("76", t.seat)
+        assertEquals(false, t.moscowTime)
+        assertEquals("70000000000001", doc.bookingRef)
+        assertEquals("Europe/Minsk", ref.zoneForPlace(t.to!!)!!.id)
     }
 
     @Test

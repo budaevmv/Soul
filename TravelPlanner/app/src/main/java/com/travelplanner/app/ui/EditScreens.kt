@@ -1,7 +1,5 @@
 package com.travelplanner.app.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,13 +49,14 @@ fun FlightEditScreen(c: AppContainer, tripId: Long, flightId: Long, onDone: () -
     var confirmDelete by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(flightId) {
-        form = if (flightId == 0L) FlightForm(remindHours = c.settings.remindHours)
+        // Черновик из загрузки (распознан не полностью) или новый перелёт
+        form = if (flightId == 0L) c.draftFlight.also { c.draftFlight = null } ?: FlightForm(remindHours = c.settings.remindHours)
         else c.db.flights().get(flightId)?.let { FlightForm.of(it) } ?: FlightForm(remindHours = c.settings.remindHours)
     }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (flightId == 0L) "Новый перелёт" else "Перелёт") },
+                title = { Text(if (form?.isTrain == true) "Поезд" else "Перелёт") },
                 navigationIcon = { IconButton(onClick = onDone) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
                 actions = {
                     if (flightId != 0L) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, "Удалить") }
@@ -72,13 +70,13 @@ fun FlightEditScreen(c: AppContainer, tripId: Long, flightId: Long, onDone: () -
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             FlightFormFields(f, c.ref)
-            Text("Напомнить «пора в аэропорт» за:", style = MaterialTheme.typography.titleSmall)
+            Text(if (f.isTrain) "Напомнить «пора на вокзал» за:" else "Напомнить «пора в аэропорт» за:", style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(2, 3, 4, 5).forEach { h ->
-                    FilterChip(selected = f.remindHours == h, onClick = { f.remindHours = h }, label = { Text("$h ч") })
+                (if (f.isTrain) listOf(60, 90, 120) else listOf(120, 180, 240, 300)).forEach { m ->
+                    FilterChip(selected = f.remindMinutes == m, onClick = { f.remindMinutes = m }, label = { Text(Format.duration(m * 60_000L)) })
                 }
             }
-            f.base?.attachmentPath?.let { path ->
+            (f.draftAttachment ?: f.base?.attachmentPath)?.let { path ->
                 OutlinedButton(onClick = { openDocument(context, File(path)) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Description, null)
                     Text("  Открыть билет")
@@ -87,7 +85,7 @@ fun FlightEditScreen(c: AppContainer, tripId: Long, flightId: Long, onDone: () -
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 onClick = {
-                    val flight = f.toFlight(tripId, c.ref)
+                    val flight = f.toFlight(tripId, c.ref, f.draftAttachment ?: f.base?.attachmentPath)
                     if (flight == null) {
                         error = "Заполните: " + f.missing().joinToString(", ")
                     } else {
@@ -124,42 +122,11 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
     val context = LocalContext.current
     val flights by c.repository.flights(tripId).collectAsState(initial = emptyList())
     var form by remember { mutableStateOf<StayForm?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var attachment by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
-    var info by remember { mutableStateOf<String?>(null) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        loading = true
-        error = null
-        info = null
-        scope.launch {
-            runCatching { c.importer.import(uri) }
-                .onSuccess { r ->
-                    attachment = r.storedFile.absolutePath
-                    val p = r.document.stay
-                    val f = form
-                    if (p == null || f == null) {
-                        error = "Не удалось найти данные брони в файле. Файл прикреплён — заполните поля вручную."
-                    } else {
-                        p.name?.let { f.name = it }
-                        p.address?.let { f.address = it }
-                        f.checkInDate = p.checkIn
-                        f.checkInTime = p.checkInTime
-                        p.checkOut?.let { f.checkOutDate = it }
-                        f.checkOutTime = p.checkOutTime
-                        p.phone?.let { f.phone = it }
-                        r.document.bookingRef?.let { f.booking = it }
-                        info = "Данные брони заполнены из файла — проверьте их и нажмите «Сохранить»."
-                    }
-                }
-                .onFailure { error = "Ошибка чтения файла: ${it.message}" }
-            loading = false
-        }
-    }
     var confirmDelete by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(stayId) {
-        form = if (stayId == 0L) StayForm() else c.db.stays().get(stayId)?.let { StayForm.of(it) } ?: StayForm()
+        form = if (stayId == 0L) c.draftStay.also { c.draftStay = null } ?: StayForm()
+        else c.db.stays().get(stayId)?.let { StayForm.of(it) } ?: StayForm()
     }
     Scaffold(
         topBar = {
@@ -177,15 +144,6 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            OutlinedButton(
-                onClick = { picker.launch(arrayOf("application/pdf", "image/*", "text/plain", "text/html")) },
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Default.UploadFile, null)
-                Text(if (loading) "  Распознаю бронь…" else "  Загрузить бронь из файла (PDF, скриншот)")
-            }
-            info?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
             StayFormFields(s)
             s.checkInDate?.let {
                 Text(
@@ -193,7 +151,7 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            (attachment ?: s.base?.attachmentPath)?.let { path ->
+            (s.draftAttachment ?: s.base?.attachmentPath)?.let { path ->
                 OutlinedButton(onClick = { openDocument(context, File(path)) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Description, null)
                     Text("  Открыть бронь")
@@ -202,7 +160,7 @@ fun StayEditScreen(c: AppContainer, tripId: Long, stayId: Long, onDone: () -> Un
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 onClick = {
-                    val stay = s.toStay(tripId, flights, attachment ?: s.base?.attachmentPath)
+                    val stay = s.toStay(tripId, flights, s.draftAttachment ?: s.base?.attachmentPath)
                     if (stay == null) {
                         error = "Заполните: " + s.missing().joinToString(", ")
                     } else {

@@ -18,6 +18,9 @@ class TripRepository(
     fun allStays() = db.stays().observeAll()
     fun flights(tripId: Long) = db.flights().observeForTrip(tripId)
     fun stays(tripId: Long) = db.stays().observeForTrip(tripId)
+    fun documents(tripId: Long) = db.documents().observeForTrip(tripId)
+
+    suspend fun addDocument(doc: TripDocument): Long = db.documents().insert(doc)
 
     suspend fun createTrip(title: String): Long = db.trips().insert(Trip(title = title.ifBlank { "Новая поездка" }))
 
@@ -26,7 +29,11 @@ class TripRepository(
     suspend fun deleteTrip(trip: Trip) = withContext(Dispatchers.IO) {
         db.flights().forTrip(trip.id).forEach { removeFlightSideEffects(it) }
         db.stays().forTrip(trip.id).forEach { removeStaySideEffects(it) }
+        val files = db.documents().forTrip(trip.id).map { it.path } +
+            db.flights().forTrip(trip.id).mapNotNull { it.attachmentPath } +
+            db.stays().forTrip(trip.id).mapNotNull { it.attachmentPath }
         db.trips().delete(trip)
+        files.distinct().forEach { File(it).delete() }
     }
 
     suspend fun saveFlight(flight: Flight): Long = withContext(Dispatchers.IO) {
@@ -81,12 +88,10 @@ class TripRepository(
     private fun removeFlightSideEffects(f: Flight) {
         scheduler.cancelFlight(f.id)
         calendar.delete(f.calendarEventId)
-        f.attachmentPath?.let { File(it).delete() }
     }
 
     private fun removeStaySideEffects(s: Stay) {
         scheduler.cancelStay(s.id)
         calendar.delete(s.calendarEventId)
-        s.attachmentPath?.let { File(it).delete() }
     }
 }

@@ -14,7 +14,8 @@ import com.travelplanner.app.reference.ReferenceData
  * Планирует уведомления:
  *  - «Пора выезжать в аэропорт» — за N часов до вылета (по умолчанию 3);
  *  - «Открыта онлайн-регистрация» — по правилам авиакомпании;
- *  - «Сегодня выезд из отеля» — за 2 часа до расчётного часа.
+ *  - «Пора на вокзал» — для поездов;
+ *  - «Сегодня заселение» — за 3 часа до заселения, «Сегодня выезд из отеля» — за 2 часа до расчётного часа.
  */
 class ReminderScheduler(
     private val context: Context,
@@ -31,6 +32,7 @@ class ReminderScheduler(
         val goAt = flight.departureMillis - flight.remindMinutes * 60_000L
         set(goAt, now, requestCode(flight.id, KIND_GO), flight.id, KIND_GO)
 
+        if (flight.isTrain) return
         val airline = ref.airline(flight.airlineCode)
         val openHours = airline?.onlineCheckinHours ?: 24
         if (settings.checkinReminder && openHours > 0) {
@@ -46,10 +48,14 @@ class ReminderScheduler(
 
     fun scheduleStay(stay: Stay, now: Long = System.currentTimeMillis()) {
         cancelStay(stay.id)
+        set(stay.checkInMillis - 3 * 3_600_000L, now, requestCode(stay.id, KIND_STAY_CHECKIN), stay.id, KIND_STAY_CHECKIN)
         set(stay.checkOutMillis - 2 * 3_600_000L, now, requestCode(stay.id, KIND_STAY_CHECKOUT), stay.id, KIND_STAY_CHECKOUT)
     }
 
-    fun cancelStay(stayId: Long) = cancel(requestCode(stayId, KIND_STAY_CHECKOUT), stayId, KIND_STAY_CHECKOUT)
+    fun cancelStay(stayId: Long) {
+        cancel(requestCode(stayId, KIND_STAY_CHECKOUT), stayId, KIND_STAY_CHECKOUT)
+        cancel(requestCode(stayId, KIND_STAY_CHECKIN), stayId, KIND_STAY_CHECKIN)
+    }
 
     private fun set(at: Long, now: Long, code: Int, id: Long, kind: Int) {
         if (at <= now) return
@@ -82,5 +88,6 @@ class ReminderScheduler(
         const val KIND_GO = 1
         const val KIND_CHECKIN = 2
         const val KIND_STAY_CHECKOUT = 5
+        const val KIND_STAY_CHECKIN = 6
     }
 }

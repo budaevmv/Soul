@@ -62,6 +62,36 @@ class ReferenceData(
 
     fun cityName(iata: String): String = airport(iata)?.city ?: iata
 
+    /** Город (по названию на русском или английском) -> аэропорт этого города (для часового пояса). */
+    private val cityPatterns: List<Pair<Regex, Airport>> by lazy {
+        val byCity = airports.values.groupBy { it.city.uppercase() }.mapValues { it.value.first() }
+        val names = byCity.toMutableMap()
+        EN_CITY_ALIASES.forEach { (en, iata) -> airports[iata]?.let { names[en] = it } }
+        names.entries.sortedByDescending { it.key.length }.map { (name, a) ->
+            Regex("(?<![А-ЯЁA-Z])" + Regex.escape(name) + "(?![А-ЯЁA-Z])") to a
+        }
+    }
+
+    /** Все упоминания городов в тексте по порядку (без подряд идущих повторов). */
+    fun citiesIn(text: String): List<Airport> {
+        val upper = text.uppercase()
+        val hits = mutableListOf<Pair<Int, Airport>>()
+        val taken = mutableListOf<IntRange>()
+        for ((re, a) in cityPatterns) {
+            re.findAll(upper).forEach { m ->
+                if (taken.none { it.first <= m.range.last && m.range.first <= it.last }) {
+                    hits += m.range.first to a
+                    taken += m.range
+                }
+            }
+        }
+        return hits.sortedBy { it.first }.map { it.second }
+            .fold(mutableListOf()) { acc, a -> if (acc.lastOrNull()?.city != a.city) acc += a; acc }
+    }
+
+    /** Часовой пояс места по названию (вокзал «САРАТОВ 1 ПАСС», адрес отеля и т.п.). */
+    fun zoneForPlace(text: String): ZoneId? = citiesIn(text).firstOrNull()?.zone
+
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
 
@@ -103,6 +133,20 @@ class ReferenceData(
             "Ввоз мяса, молочных продуктов и продуктов животного происхождения из стран вне ЕС запрещён.",
             "Наличные от 10 000 € — обязательно декларировать.",
             "Ввоз автомобилей с российскими номерами в большинство стран ЕС запрещён; также известны случаи изъятия личных вещей «санкционного» списка — уточняйте правила конкретной страны.",
+        )
+
+        private val EN_CITY_ALIASES = mapOf(
+            "MOSCOW" to "SVO", "SAINT PETERSBURG" to "LED", "ST. PETERSBURG" to "LED", "SARATOV" to "GSV", "KAZAN" to "KZN",
+            "SOCHI" to "AER", "MINSK" to "MSQ", "ISTANBUL" to "IST", "ANTALYA" to "AYT", "DUBAI" to "DXB", "ABU DHABI" to "AUH",
+            "SHARJAH" to "SHJ", "DOHA" to "DOH", "KUALA LUMPUR" to "KUL", "BANGKOK" to "BKK", "PHUKET" to "HKT", "PATTAYA" to "UTP",
+            "BALI" to "DPS", "DENPASAR" to "DPS", "SINGAPORE" to "SIN", "HO CHI MINH" to "SGN", "HANOI" to "HAN", "NHA TRANG" to "CXR",
+            "TBILISI" to "TBS", "BATUMI" to "BUS", "YEREVAN" to "EVN", "BAKU" to "GYD", "ALMATY" to "ALA", "ASTANA" to "NQZ",
+            "TASHKENT" to "TAS", "SAMARKAND" to "SKD", "BISHKEK" to "FRU", "CAIRO" to "CAI", "HURGHADA" to "HRG",
+            "SHARM EL SHEIKH" to "SSH", "BEIJING" to "PEK", "SHANGHAI" to "PVG", "GUANGZHOU" to "CAN", "SANYA" to "SYX",
+            "HONG KONG" to "HKG", "SEOUL" to "ICN", "TOKYO" to "HND", "DELHI" to "DEL", "NEW DELHI" to "DEL", "GOA" to "GOI",
+            "COLOMBO" to "CMB", "BELGRADE" to "BEG", "TIVAT" to "TIV", "BUDVA" to "TIV", "LARNACA" to "LCA",
+            "LIMASSOL" to "LCA", "PAPHOS" to "PFO", "ATHENS" to "ATH", "ROME" to "FCO", "MILAN" to "MXP", "PARIS" to "CDG",
+            "BERLIN" to "BER", "BARCELONA" to "BCN", "MADRID" to "MAD", "PRAGUE" to "PRG", "VIENNA" to "VIE", "HAVANA" to "HAV",
         )
 
         val genericChecklist = listOf(

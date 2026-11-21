@@ -16,6 +16,9 @@ import com.travelplanner.app.MainActivity
 import com.travelplanner.app.R
 import com.travelplanner.app.TravelApp
 import com.travelplanner.app.ui.Format
+import com.travelplanner.app.ui.fromCity
+import com.travelplanner.app.ui.title
+import com.travelplanner.app.ui.toCity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,9 +40,17 @@ class ReminderReceiver : BroadcastReceiver() {
                         val ref = c.ref
                         val from = ref.airport(f.fromIata)
                         val depTime = Format.time(f.departureMillis, f.departureZone)
-                        val route = "${ref.cityName(f.fromIata)} → ${ref.cityName(f.toIata)}"
-                        val flightNo = "${f.airlineCode} ${f.flightNumber}"
-                        if (kind == ReminderScheduler.KIND_GO) {
+                        val route = "${f.fromCity(ref)} → ${f.toCity(ref)}"
+                        val flightNo = f.title()
+                        if (kind == ReminderScheduler.KIND_GO && f.isTrain) {
+                            val place = listOfNotNull(f.car.takeIf { it.isNotBlank() }?.let { "вагон $it" }, f.seat.takeIf { it.isNotBlank() }?.let { "место $it" })
+                            notify(
+                                context, f.tripId, (id * 8 + kind).toInt(),
+                                "Пора выезжать на вокзал",
+                                "$flightNo $route, отправление в $depTime.\n${f.fromName}" +
+                                    (if (place.isNotEmpty()) ", ${place.joinToString(", ")}." else "."),
+                            )
+                        } else if (kind == ReminderScheduler.KIND_GO) {
                             val terminal = f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""
                             val airline = ref.airline(f.airlineCode)
                             val closes = airline?.airportCheckinCloseMinutes?.let { "\nРегистрация закрывается за $it мин до вылета." } ?: ""
@@ -56,6 +67,15 @@ class ReminderReceiver : BroadcastReceiver() {
                                 "$flightNo $route, вылет ${Format.dateTime(f.departureMillis, f.departureZone)}.$site",
                             )
                         }
+                    }
+                    ReminderScheduler.KIND_STAY_CHECKIN -> {
+                        val s = c.db.stays().get(id) ?: return@launch
+                        notify(
+                            context, s.tripId, (id * 8 + kind).toInt(),
+                            "Сегодня заселение: ${s.name}",
+                            "С ${Format.time(s.checkInMillis, s.zone)}. ${s.address}".trim() +
+                                (s.bookingRef.takeIf { it.isNotBlank() }?.let { "\nБронь: $it" } ?: ""),
+                        )
                     }
                     ReminderScheduler.KIND_STAY_CHECKOUT -> {
                         val s = c.db.stays().get(id) ?: return@launch

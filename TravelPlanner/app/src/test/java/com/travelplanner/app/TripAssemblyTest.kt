@@ -1,0 +1,89 @@
+package com.travelplanner.app
+
+import com.travelplanner.app.importer.Converters
+import com.travelplanner.app.importer.ParsedDocument
+import com.travelplanner.app.importer.PlanItem
+import com.travelplanner.app.importer.TicketParser
+import com.travelplanner.app.importer.TripGrouping
+import com.travelplanner.app.reference.ReferenceData
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import java.io.File
+import java.time.LocalDate
+import java.time.ZoneId
+
+/** Сквозная проверка: пачка документов -> пункты -> одна поездка с маршрутом и названием. */
+class TripAssemblyTest {
+    private val ref: ReferenceData = run {
+        val dir = listOf(File("src/main/assets"), File("app/src/main/assets")).first { it.exists() }
+        ReferenceData.parse(File(dir, "airports.json").readText(), File(dir, "airlines.json").readText(), File(dir, "countries.json").readText())
+    }
+    private val today = LocalDate.of(2026, 11, 20)
+
+    private fun parser(): TicketParser {
+        val names = mutableMapOf<String, String>()
+        ref.airports.values.forEach { if (it.name.length >= 5 && it.name != it.city) names[it.name.uppercase()] = it.iata }
+        ref.airports.values.groupBy { it.city }.forEach { (city, l) -> if (l.size == 1 && city.length >= 4) names[city.uppercase()] = l.first().iata }
+        return TicketParser(ref.airports.keys, ref.airlines.keys, names, today) { t -> ref.citiesIn(t).map { it.city } }
+    }
+
+    /** Повторяет логику TripAssembler без Android: распознать, убрать дубликаты, собрать. */
+    private fun assemble(docs: List<ParsedDocument>): Pair<List<List<PlanItem>>, Int> {
+        val items = mutableListOf<PlanItem>()
+        val keys = mutableSetOf<String>()
+        var dup = 0
+        docs.forEachIndexed { i, d ->
+            d.flights.forEach { p -> Converters.flight(p, ref, 0, 180, "f$i", d.bookingRef, d.passenger)?.let { if (keys.add(it.dedupKey())) items += PlanItem.Move(it, "f$i") else dup++ } }
+            d.trains.forEach { p -> Converters.train(p, ref, 0, 90, "f$i", d.bookingRef, d.passenger)?.let { if (keys.add(it.dedupKey())) items += PlanItem.Move(it, "f$i") else dup++ } }
+        }
+        val moves = items.filterIsInstance<PlanItem.Move>().map { it.flight }
+        docs.forEachIndexed { i, d ->
+            d.stay?.let { p ->
+                val zone = ref.zoneForPlace(p.address.orEmpty()) ?: ZoneId.of(moves.first().arrivalZone)
+                Converters.stay(p, zone, 0, "f$i", d.bookingRef)?.let { s ->
+                    if (keys.add(Converters.stayKey(s))) items += PlanItem.Hotel(s, "f$i") else dup++
+                }
+            }
+        }
+        return TripGrouping(ref).cluster(items) to dup
+    }
+
+    @Test
+    fun documentsOfAllTypesBecomeOneTrip() {
+        val p = parser()
+        // Квитанция «Победы» загружена дважды — как у пользователя в «Проводнике»
+        val docs = listOf(Samples.POBEDA, Samples.HOTEL, Samples.RZD, Samples.AGENCY, Samples.POBEDA).map { p.parse(it) }
+        val (groups, dup) = assemble(docs)
+        assertEquals(1, groups.size)
+        assertEquals(1, dup)
+        val trip = groups.single()
+        val route = trip.sortedBy { it.start }.map {
+            when (it) {
+                is PlanItem.Move -> if (it.flight.isTrain) "🚆${it.flight.fromName}→${it.flight.toName}" else "✈${it.flight.fromIata}→${it.flight.toIata}"
+                is PlanItem.Hotel -> "🏨${it.stay.name}"
+            }
+        }
+        // По времени: заселение 21.11 14:00 раньше рейса 21.11 22:30
+        assertEquals(listOf("🏨Test Hills Hotel", "✈GSV→SVO", "🚆Москва Белорусская→Минск", "✈MSQ→DXB", "✈DXB→KUL"), route)
+        assertEquals("Куала-Лумпур, ноябрь 2026", TripGrouping(ref).title(trip, ZoneId.of("Europe/Moscow")))
+
+        // Время поезда — местное: Москва и Минск обе UTC+3, в пути 7 ч 06 мин
+        val train = trip.filterIsInstance<PlanItem.Move>().first { it.flight.isTrain }.flight
+        assertEquals(7 * 60 + 6L, (train.arrivalMillis!! - train.departureMillis) / 60_000)
+        assertEquals("Europe/Minsk", train.arrivalZone)
+        // Саратов UTC+4 -> Москва UTC+3: 22:30 -> 23:20 = 1 ч 50 мин
+        val pobeda = trip.filterIsInstance<PlanItem.Move>().first { it.flight.fromIata == "GSV" }.flight
+        assertEquals(110L, (pobeda.arrivalMillis!! - pobeda.departureMillis) / 60_000)
+        // Отель в Москве — московское время
+        assertEquals("Europe/Moscow", trip.filterIsInstance<PlanItem.Hotel>().single().stay.zone)
+    }
+
+    @Test
+    fun farApartDocumentsBecomeSeparateTrips() {
+        val p = parser()
+        // Поезд в ноябре и перелёт в марте — две разные поездки
+        val docs = listOf(Samples.RZD, "Flight SU 1124 SVO - AER 15.03.2027 07:35 10:05").map { p.parse(it) }
+        val (groups, _) = assemble(docs)
+        assertEquals(2, groups.size)
+    }
+}

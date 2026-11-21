@@ -18,6 +18,9 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE id = :id")
     suspend fun get(id: Long): Trip?
 
+    @Query("SELECT * FROM trips")
+    suspend fun all(): List<Trip>
+
     @Insert
     suspend fun insert(trip: Trip): Long
 
@@ -41,6 +44,9 @@ interface FlightDao {
 
     @Query("SELECT * FROM flights WHERE departureMillis > :fromMillis")
     suspend fun upcoming(fromMillis: Long): List<Flight>
+
+    @Query("SELECT * FROM flights")
+    suspend fun all(): List<Flight>
 
     @Query("SELECT * FROM flights WHERE id = :id")
     suspend fun get(id: Long): Flight?
@@ -69,6 +75,9 @@ interface StayDao {
     @Query("SELECT * FROM stays WHERE checkOutMillis > :fromMillis")
     suspend fun upcoming(fromMillis: Long): List<Stay>
 
+    @Query("SELECT * FROM stays")
+    suspend fun all(): List<Stay>
+
     @Query("SELECT * FROM stays WHERE id = :id")
     suspend fun get(id: Long): Stay?
 
@@ -80,4 +89,19 @@ interface StayDao {
 
     @Delete
     suspend fun delete(stay: Stay)
+}
+
+@Dao
+interface DocumentDao {
+    @Query("SELECT * FROM documents WHERE tripId = :tripId ORDER BY addedAt")
+    fun observeForTrip(tripId: Long): Flow<List<TripDocument>>
+
+    @Query("SELECT * FROM documents WHERE tripId = :tripId")
+    suspend fun forTrip(tripId: Long): List<TripDocument>
+
+    @Insert
+    suspend fun insert(doc: TripDocument): Long
+
+    @Delete
+    suspend fun delete(doc: TripDocument)
 }

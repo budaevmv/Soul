@@ -10,6 +10,11 @@ class Settings(context: Context) {
         get() = prefs.getInt("remind_hours", 3)
         set(value) = prefs.edit().putInt("remind_hours", value).apply()
 
+    /** За сколько минут до отправления поезда напоминать «пора на вокзал». */
+    var trainRemindMinutes: Int
+        get() = prefs.getInt("train_remind_minutes", 90)
+        set(value) = prefs.edit().putInt("train_remind_minutes", value).apply()
+
     /** Добавлять ли перелёты и проживание в системный календарь. */
     var calendarSync: Boolean
         get() = prefs.getBoolean("calendar_sync", true)

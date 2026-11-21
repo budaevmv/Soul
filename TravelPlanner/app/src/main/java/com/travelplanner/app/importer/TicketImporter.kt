@@ -9,6 +9,8 @@ import java.time.LocalDate
 
 data class ImportResult(
     val document: ParsedDocument,
+    /** Имя файла, как его видит пользователь. */
+    val displayName: String,
     /** Копия файла во внутреннем хранилище приложения (доступна офлайн). */
     val storedFile: File,
     val rawText: String,
@@ -21,15 +23,16 @@ class TicketImporter(private val context: Context, private val ref: ReferenceDat
     suspend fun import(uri: Uri): ImportResult {
         val resolver = context.contentResolver
         val mime = resolver.getType(uri)
-        val stored = copyToDocs(uri)
+        val name = displayName(uri) ?: "документ"
+        val stored = copyToDocs(uri, name)
         val content = extractor.extract(stored, mime)
         val doc = parse(content)
-        return ImportResult(doc, stored, content.text)
+        return ImportResult(doc, name, stored, content.text)
     }
 
     fun parse(content: ExtractedContent, today: LocalDate = LocalDate.now()): ParsedDocument {
         val names = buildAirportNames()
-        val parser = TicketParser(ref.airports.keys, ref.airlines.keys, names, today)
+        val parser = TicketParser(ref.airports.keys, ref.airlines.keys, names, today) { t -> ref.citiesIn(t).map { it.city } }
         val doc = parser.parse(content.text)
         val bcbp = content.barcodes.mapNotNull { BcbpParser.parse(it.trim(), today) }
         if (bcbp.isEmpty()) return doc
@@ -58,9 +61,8 @@ class TicketImporter(private val context: Context, private val ref: ReferenceDat
 
     private fun docsDir(): File = File(context.filesDir, "docs").apply { mkdirs() }
 
-    private fun copyToDocs(uri: Uri): File {
+    private fun copyToDocs(uri: Uri, name: String): File {
         val dir = docsDir()
-        val name = displayName(uri) ?: "document"
         val safe = name.replace(Regex("[^\\w.\\-а-яА-ЯёЁ ]"), "_")
         val target = File(dir, "${System.currentTimeMillis()}_$safe")
         context.contentResolver.openInputStream(uri)?.use { input ->

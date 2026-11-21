@@ -18,6 +18,21 @@ data class ParsedFlight(
     val key: String get() = airlineCode + number
 }
 
+/** Поезд. Станции — как в билете (например «САРАТОВ 1 ПАСС»). */
+data class ParsedTrain(
+    val number: String,
+    val from: String? = null,
+    val to: String? = null,
+    val depDate: LocalDate? = null,
+    val depTime: LocalTime? = null,
+    val arrDate: LocalDate? = null,
+    val arrTime: LocalTime? = null,
+    val car: String? = null,
+    val seat: String? = null,
+    /** Время в билете указано московское (иначе — местное). */
+    val moscowTime: Boolean = false,
+)
+
 data class ParsedStay(
     val name: String?,
     val address: String?,
@@ -33,8 +48,9 @@ data class ParsedDocument(
     val stay: ParsedStay?,
     val bookingRef: String?,
     val passenger: String?,
+    val trains: List<ParsedTrain> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = flights.isEmpty() && stay == null
+    val isEmpty: Boolean get() = flights.isEmpty() && stay == null && trains.isEmpty()
 }
 
 /**
@@ -47,6 +63,8 @@ class TicketParser(
     /** Названия аэропортов/городов (в верхнем регистре) -> IATA, для билетов без кодов. */
     private val airportNames: Map<String, String> = emptyMap(),
     private val today: LocalDate = LocalDate.now(),
+    /** Города, упомянутые в тексте, по порядку (для вокзалов). */
+    private val cityFinder: (String) -> List<String> = { emptyList() },
 ) {
 
     private val nameRegexes: List<Pair<Regex, String>> = airportNames
@@ -56,14 +74,109 @@ class TicketParser(
     fun parse(rawText: String): ParsedDocument {
         val text = normalize(rawText)
         val upper = text.uppercase()
-        val flights = parseFlights(upper)
+        // ЖД-билет: в нём не ищем авиарейсы (номера вагонов/мест дают ложные совпадения)
+        val trains = if (TRAIN_MARKER.containsMatchIn(upper) && CAR_MARKER.containsMatchIn(upper)) parseTrains(text, upper) else emptyList()
+        val flights = if (trains.isEmpty()) parseFlights(upper) else emptyList()
         return ParsedDocument(
             flights = flights,
-            stay = parseStay(text, upper, hasFlights = flights.isNotEmpty()),
+            stay = parseStay(text, upper, hasFlights = flights.isNotEmpty() || trains.isNotEmpty()),
             bookingRef = findBookingRef(upper),
             passenger = findPassenger(text),
+            trains = trains,
         )
     }
+
+    // ---------- Поезда ----------
+
+    private fun parseTrains(text: String, upper: String): List<ParsedTrain> {
+        data class Hit(val number: String, val start: Int, val end: Int)
+        var hits = TRAIN_NO.findAll(upper).map { Hit(it.groupValues[1].replace(" ", ""), it.range.first, it.range.last + 1) }
+            .distinctBy { it.number }.toList()
+        if (hits.isEmpty()) {
+            // Таблица «Поезд | Вагон | Место» и строкой ниже «009Ж 05 012»
+            val marker = TRAIN_MARKER.find(upper) ?: return emptyList()
+            val window = upper.substring(marker.range.first, minOf(upper.length, marker.range.first + 400))
+            val m = TRAIN_NO_BARE.find(window) ?: return emptyList()
+            hits = listOf(Hit(m.value, marker.range.first + m.range.first, marker.range.first + m.range.last + 1))
+        }
+        val moscow = MOSCOW_TIME.containsMatchIn(upper) && !LOCAL_TIME.containsMatchIn(upper)
+        val yearHint = YEAR_HINT.find(upper)?.groupValues?.get(1)?.toInt()
+        // В билетах РЖД дата часто без года («22.11»), год — отдельной строкой
+        fun trainDates(r: IntRange): List<LocalDate> {
+            if (r.isEmpty()) return emptyList()
+            val w = upper.substring(r.first, r.last + 1)
+            val found = datesWithPositions(w).toMutableList()
+            for (m in DATE_DM.findAll(w)) {
+                val d = m.groupValues[1].toInt()
+                val mo = m.groupValues[2].toInt()
+                val date = yearHint?.let { date(it, mo, d) } ?: runCatching { inferYear(mo, d) }.getOrNull()
+                date?.let { found += m.range.first to it }
+            }
+            return found.sortedBy { it.first }.map { it.second }
+        }
+        return hits.mapIndexed { i, hit ->
+            val prevEnd = hits.getOrNull(i - 1)?.end ?: 0
+            val next = hits.getOrNull(i + 1)?.start ?: minOf(upper.length, hit.end + 1500)
+            // Дата/время и маршрут в билетах РЖД стоят выше строки «Поезд 717МА», иногда с большими отступами
+            val range = maxOf(prevEnd, hit.start - 1500) until maxOf(hit.end, next)
+            val window = upper.substring(range.first, range.last + 1)
+            val original = text.substring(range.first, range.last + 1)
+
+            fun afterLabel(label: Regex): Pair<LocalDate?, LocalTime?> {
+                val m = label.find(window) ?: return null to null
+                val r = (range.first + m.range.last + 1) until minOf(upper.length, range.first + m.range.last + 1 + 120)
+                return trainDates(r).firstOrNull() to tripTimes(upper, r).firstOrNull()
+            }
+            val dates = trainDates(range)
+            val times = tripTimes(upper, range)
+            val (dl, tl) = afterLabel(TRAIN_DEP)
+            val (da, ta) = afterLabel(TRAIN_ARR)
+            val depDate = dl ?: dates.getOrNull(0)
+            val depTime = tl ?: times.getOrNull(0)
+            val arrTime = ta ?: times.getOrNull(1)
+            var arrDate = da ?: dates.getOrNull(1)?.takeIf { depDate == null || !it.isBefore(depDate) } ?: depDate
+            if (da == null && arrDate == depDate && depTime != null && arrTime != null && arrTime < depTime) arrDate = arrDate?.plusDays(1)
+
+            val (from, to) = findRoute(original)
+            ParsedTrain(
+                number = hit.number,
+                from = from,
+                to = to,
+                depDate = depDate,
+                depTime = depTime,
+                arrDate = if (arrTime != null) arrDate else null,
+                arrTime = arrTime,
+                car = CAR.find(window)?.groupValues?.get(1)?.trimStart('0')?.ifEmpty { null },
+                seat = TRAIN_SEAT.find(window)?.groupValues?.get(1)?.trimStart('0')?.ifEmpty { null },
+                moscowTime = moscow,
+            )
+        }
+    }
+
+    /** Время, кроме длительности («в пути 13:35»). */
+    private fun tripTimes(upper: String, range: IntRange): List<LocalTime> {
+        if (range.isEmpty()) return emptyList()
+        return TIME.findAll(upper.substring(range.first, range.last + 1)).filter { m ->
+            val abs = range.first + m.range.first
+            !upper.substring(maxOf(0, abs - 20), abs).contains(Regex("ПУТИ|ПУТЬ|TRAVEL TIME|DURATION"))
+        }.map { LocalTime.of(it.groupValues[1].toInt(), it.groupValues[2].toInt()) }.toList()
+    }
+
+    /** Станции отправления и прибытия: «САРАТОВ 1 ПАСС — МОСКВА ПАВЕЛЕЦКАЯ», иначе — первые два города в тексте. */
+    private fun findRoute(original: String): Pair<String?, String?> {
+        val candidates = (ROUTE_UPPER.findAll(original) + ROUTE_MIXED.findAll(original)).map { m ->
+            clean(m.groupValues[1]) to clean(m.groupValues[2])
+        }.filter { (a, b) -> a.length >= 3 && b.length >= 3 && a != b }.toList()
+        candidates.firstOrNull { (a, b) -> cityFinder(a).isNotEmpty() && cityFinder(b).isNotEmpty() }?.let { return it }
+        val cities = cityFinder(original).distinct()
+        if (cities.size >= 2) return cities[0] to cities[1]
+        return candidates.firstOrNull() ?: (null to null)
+    }
+
+    private fun clean(station: String): String =
+        station.trim().split(Regex("\\s+"))
+            .takeWhile { it.uppercase() !in STATION_STOP_WORDS && !Regex("^\\d+[.:]|^\\d{2,}").containsMatchIn(it) }
+            .joinToString(" ").trim(' ', '-', ',', '.')
 
     // ---------- Рейсы ----------
 
@@ -195,7 +308,10 @@ class TicketParser(
 
     fun findDates(upper: String, range: IntRange = upper.indices): List<LocalDate> {
         if (range.isEmpty()) return emptyList()
-        val window = upper.substring(range.first, range.last + 1)
+        return datesWithPositions(upper.substring(range.first, range.last + 1)).map { it.second }
+    }
+
+    private fun datesWithPositions(window: String): List<Pair<Int, LocalDate>> {
         val found = mutableListOf<Pair<Int, LocalDate>>()
         for (m in DATE_NUMERIC.findAll(window)) {
             val (d, mo, y) = m.destructured
@@ -216,7 +332,7 @@ class TicketParser(
             val month = MONTHS[m.groupValues[1].take(3)] ?: continue
             date(m.groupValues[3].toInt(), month, m.groupValues[2].toInt())?.let { found += m.range.first to it }
         }
-        return found.sortedBy { it.first }.map { it.second }
+        return found.sortedBy { it.first }
     }
 
     private fun findTimes(upper: String, range: IntRange): List<LocalTime> {
@@ -348,6 +464,7 @@ class TicketParser(
         return BOOKING_REF.findAll(upper).map { it.groupValues[1] }.firstOrNull { t ->
             t.any(Char::isDigit) || t.count { it in VOWELS } <= 1
         } ?: BOOKING_NUMBER.find(upper)?.groupValues?.get(1)
+            ?: ORDER_NUMBER.find(upper)?.groupValues?.get(1)
     }
 
     /** Имя пассажира — первая строка из 2–4 слов ЗАГЛАВНЫМИ буквами после подписи «Пассажир / ФИО». */
@@ -398,7 +515,7 @@ class TicketParser(
         )
         private val PNR_TOKEN = Regex("(?<![A-ZА-ЯЁ0-9])[A-ZА-ЯЁ0-9]{6}(?![A-ZА-ЯЁ0-9])")
         private const val VOWELS = "AEIOUYАЕЁИОУЫЭЮЯ"
-        private val PASSENGER_KEYWORD = Regex("(?iu)passenger|пассажир|фамилия,?\\s*имя|\\bФИО\\b|клиент")
+        private val PASSENGER_KEYWORD = Regex("(?iu)passenger(?![a-z])|пассажир(?:а|у|ы)?(?![а-яё])|фамилия,?\\s*имя|\\bФИО\\b|клиент")
         private val PASSENGER_NAME = Regex("(?<![A-Za-zА-Яа-яЁё])[A-ZА-ЯЁ]{2,}(?:[ /]{1,2}[A-ZА-ЯЁ]{2,}){1,3}(?![A-Za-zА-Яа-яЁё])")
         private val PASSENGER_NAME_LATIN = Regex("(?<![A-Za-zА-Яа-яЁё])[A-Z]{2,}(?:[ /]{1,2}[A-Z]{2,}){1,3}(?![A-Za-zА-Яа-яЁё])")
         private val NAME_STOP_WORDS = setOf(
@@ -420,6 +537,29 @@ class TicketParser(
             "JANUARY", "JAN", "FEBRUARY", "FEB", "MARCH", "MAR", "APRIL", "APR", "MAY", "JUNE", "JUN", "JULY", "JUL",
             "AUGUST", "AUG", "SEPTEMBER", "SEP", "SEPT", "OCTOBER", "OCT", "NOVEMBER", "NOV", "DECEMBER", "DEC",
         )
+        private val TRAIN_MARKER = Regex("ПОЕЗД|TRAIN")
+        private val CAR_MARKER = Regex("ВАГОН|\\bCAR\\b|COACH")
+        private val TRAIN_NO = Regex(
+            "(?:№\\s*ПОЕЗДА|ПОЕЗД(?:А)?(?:\\s*/\\s*TRAIN)?|TRAIN)\\s*(?:№|N|НОМЕР|NO\\.?)?\\s*:?\\s*(\\d{1,4}\\s?[А-ЯЁA-Z]{1,2})(?![А-ЯЁA-Z0-9])",
+        )
+        private val TRAIN_NO_BARE = Regex("(?<![\\dА-ЯЁA-Z])\\d{3}[А-ЯЁ]{1,2}(?![А-ЯЁA-Z0-9])")
+        private val TRAIN_DEP = Regex("ОТПРАВЛЕНИ[ЕЯ]|ОТПР\\.|DEPARTURE")
+        private val TRAIN_ARR = Regex("ПРИБЫТИ[ЕЯ]|ПРИБ\\.|ARRIVAL")
+        private val CAR = Regex("ВАГОН\\s*(?:№|N)?\\s*:?\\s*(\\d{1,2})(?!\\d)")
+        private val TRAIN_SEAT = Regex("МЕСТ[ОА]\\s*(?:№|N)?\\s*:?\\s*(\\d{1,3}[А-ЯЁA-Z]?)(?![\\dА-ЯЁA-Z])")
+        private val MOSCOW_TIME = Regex("МСК|МОСКОВСК")
+        private val LOCAL_TIME = Regex("МЕСТН")
+        private val YEAR_HINT = Regex("ГОД СОВЕРШЕНИЯ ПОЕЗДКИ\\s*:?\\s*(\\d{4})")
+        private val DATE_DM = Regex("(?<![\\d.])(\\d{1,2})\\.(\\d{1,2})(?![\\d.])")
+        private const val STATION = "[А-ЯЁ][А-ЯЁ0-9.\\-]*(?: [А-ЯЁ0-9.\\-]+){0,3}"
+        private val ROUTE_UPPER = Regex("($STATION)\\s*(?:\\(\\d{5,8}\\))?\\s*(?:—|→|–| - |->)\\s*($STATION)")
+        private val ROUTE_MIXED = Regex(
+            "([А-ЯЁ][а-яё]+(?:[ -][А-ЯЁа-яё0-9]+){0,3})\\s*(?:\\(\\d{5,8}\\))?\\s*(?:—|→|–| - |->)\\s*([А-ЯЁ][а-яё]+(?:[ -][А-ЯЁа-яё0-9]+){0,3})",
+        )
+        private val STATION_STOP_WORDS = setOf(
+            "ОТПРАВЛЕНИЕ", "ПРИБЫТИЕ", "ПОЕЗД", "ВАГОН", "МЕСТО", "ДАТА", "ВРЕМЯ", "ОТПР", "ПРИБ", "ФИО", "ПАССАЖИР", "НОМЕР",
+        )
+        private val ORDER_NUMBER = Regex("(?:ЗАКАЗ[А]?|ЭЛЕКТРОННЫЙ БИЛЕТ|БИЛЕТ)\\s*(?:№|N)?\\s*:?\\s*(\\d{8,16})(?!\\d)")
         private val PHONE_KEYWORD = Regex("(?iu)телефон|phone|тел\\.")
         private val PHONE_NUMBER = Regex("\\+?\\d[\\d ()\\-]{8,18}\\d")
         private val BOOKING_NUMBER = Regex("(?:БРОНИРОВАНИ[ЕЯ]|BOOKING|ЗАКАЗ)[^№#\\n]{0,40}\\s*[№#]\\s*([A-ZА-Я0-9\\-]{5,20})")

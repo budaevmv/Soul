@@ -56,7 +56,21 @@ class FlightForm(
     passenger: String = "",
     remindHours: Int = 3,
     val base: Flight? = null,
+    mode: String = Flight.MODE_FLIGHT,
+    fromName: String = "",
+    toName: String = "",
+    car: String = "",
+    remindMinutes: Int = remindHours * 60,
 ) {
+    var mode by mutableStateOf(mode)
+    var fromName by mutableStateOf(fromName)
+    var toName by mutableStateOf(toName)
+    var car by mutableStateOf(car)
+    var remindMinutes by mutableStateOf(remindMinutes)
+    val isTrain: Boolean get() = mode == Flight.MODE_TRAIN
+
+    /** Файл, из которого распознан черновик (для пунктов, дополняемых вручную). */
+    var draftAttachment: String? = null
     var airline by mutableStateOf(airline)
     var number by mutableStateOf(number)
     var from by mutableStateOf(from)
@@ -69,11 +83,16 @@ class FlightForm(
     var seat by mutableStateOf(seat)
     var booking by mutableStateOf(booking)
     var passenger by mutableStateOf(passenger)
-    var remindHours by mutableStateOf(remindHours)
     var selected by mutableStateOf(true)
 
     /** Чего не хватает для сохранения. */
-    fun missing(): List<String> = buildList {
+    fun missing(): List<String> = if (isTrain) buildList {
+        if (number.isBlank()) add("номер поезда")
+        if (fromName.isBlank()) add("станция отправления")
+        if (toName.isBlank()) add("станция прибытия")
+        if (depDate == null) add("дата отправления")
+        if (depTime == null) add("время отправления")
+    } else buildList {
         if (airline.isBlank() || number.isBlank()) add("номер рейса")
         if (from.length != 3) add("аэропорт вылета")
         if (to.length != 3) add("аэропорт прилёта")
@@ -83,6 +102,7 @@ class FlightForm(
 
     fun toFlight(tripId: Long, ref: ReferenceData, attachment: String? = base?.attachmentPath): Flight? {
         if (missing().isNotEmpty()) return null
+        if (isTrain) return toTrain(tripId, ref, attachment)
         val depZone = ref.zoneFor(from).id
         val arrZone = ref.zoneFor(to).id
         val dep = Format.toMillis(depDate!!, depTime!!, depZone)
@@ -108,8 +128,29 @@ class FlightForm(
             seat = seat.trim().uppercase(),
             bookingRef = booking.trim().uppercase(),
             passenger = passenger.trim(),
-            remindMinutes = remindHours * 60,
+            remindMinutes = remindMinutes,
             attachmentPath = attachment,
+            mode = Flight.MODE_FLIGHT,
+        )
+    }
+
+    private fun toTrain(tripId: Long, ref: ReferenceData, attachment: String?): Flight {
+        val depZone = (ref.zoneForPlace(fromName) ?: java.time.ZoneId.systemDefault()).id
+        val arrZone = (ref.zoneForPlace(toName)?.id) ?: depZone
+        val dep = Format.toMillis(depDate!!, depTime!!, depZone)
+        val arr = arrTime?.let { t -> Format.toMillis(arrDate ?: depDate!!, t, arrZone) }?.let { a ->
+            if (a <= dep && arrDate == null) a + 24 * 3_600_000L else a
+        }
+        val b = base ?: Flight(
+            tripId = tripId, airlineCode = "", flightNumber = "", fromIata = "", toIata = "",
+            departureMillis = 0, departureZone = depZone, arrivalMillis = null, arrivalZone = arrZone,
+        )
+        return b.copy(
+            tripId = tripId, airlineCode = "", flightNumber = number.trim().uppercase(), fromIata = "", toIata = "",
+            departureMillis = dep, departureZone = depZone, arrivalMillis = arr, arrivalZone = arrZone,
+            departureTerminal = "", seat = seat.trim(), car = car.trim(), bookingRef = booking.trim(), passenger = passenger.trim(),
+            remindMinutes = remindMinutes, attachmentPath = attachment, mode = Flight.MODE_TRAIN,
+            fromName = fromName.trim(), toName = toName.trim(),
         )
     }
 
@@ -120,13 +161,23 @@ class FlightForm(
             return FlightForm(
                 f.airlineCode, f.flightNumber, f.fromIata, f.toIata,
                 dep.toLocalDate(), dep.toLocalTime(), arr?.toLocalDate(), arr?.toLocalTime(),
-                f.departureTerminal, f.seat, f.bookingRef, f.passenger, f.remindMinutes / 60, base = f,
+                f.departureTerminal, f.seat, f.bookingRef, f.passenger, base = f,
+                mode = f.mode, fromName = f.fromName, toName = f.toName, car = f.car, remindMinutes = f.remindMinutes,
             )
         }
 
         fun of(p: ParsedFlight, booking: String?, passenger: String?, remindHours: Int) = FlightForm(
             p.airlineCode, p.number, p.from ?: "", p.to ?: "", p.depDate, p.depTime, p.arrDate, p.arrTime,
             p.terminal ?: "", p.seat ?: "", booking ?: "", passenger ?: "", remindHours,
+        )
+
+        fun of(p: com.travelplanner.app.importer.ParsedTrain, booking: String?, passenger: String?, remindMinutes: Int) = FlightForm(
+            number = p.number, depDate = p.depDate, depTime = p.depTime, arrDate = p.arrDate, arrTime = p.arrTime,
+            seat = p.seat ?: "", booking = booking ?: "", passenger = passenger ?: "",
+            mode = Flight.MODE_TRAIN,
+            fromName = p.from?.let { com.travelplanner.app.importer.Converters.titleCase(it) } ?: "",
+            toName = p.to?.let { com.travelplanner.app.importer.Converters.titleCase(it) } ?: "",
+            car = p.car ?: "", remindMinutes = remindMinutes,
         )
     }
 }
@@ -153,6 +204,7 @@ class StayForm(
     var phone by mutableStateOf(phone)
     var notes by mutableStateOf(notes)
     var selected by mutableStateOf(true)
+    var draftAttachment: String? = null
 
     fun missing(): List<String> = buildList {
         if (name.isBlank()) add("название")
@@ -316,6 +368,10 @@ fun AirportField(label: String, value: String, onChange: (String) -> Unit, ref: 
 
 @Composable
 fun FlightFormFields(form: FlightForm, ref: ReferenceData, compact: Boolean = false) {
+    if (form.isTrain) {
+        TrainFormFields(form, ref)
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
@@ -349,6 +405,40 @@ fun FlightFormFields(form: FlightForm, ref: ReferenceData, compact: Boolean = fa
             OutlinedTextField(form.booking, { form.booking = it }, label = { Text("Код бронирования") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(form.passenger, { form.passenger = it }, label = { Text("Пассажир") }, singleLine = true, modifier = Modifier.fillMaxWidth())
         }
+    }
+}
+
+@Composable
+fun TrainFormFields(form: FlightForm, ref: ReferenceData) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            form.number, { form.number = it.take(6) }, label = { Text("Номер поезда (например 717МА)") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(), isError = form.number.isBlank(),
+        )
+        OutlinedTextField(
+            form.fromName, { form.fromName = it }, label = { Text("Станция отправления") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth(), isError = form.fromName.isBlank(),
+            supportingText = { ref.citiesIn(form.fromName).firstOrNull()?.let { Text("${it.city} · ${Format.utcOffset(it.zone.id)}") } },
+        )
+        OutlinedTextField(
+            form.toName, { form.toName = it }, label = { Text("Станция прибытия") }, singleLine = true,
+            modifier = Modifier.fillMaxWidth(), isError = form.toName.isBlank(),
+            supportingText = { ref.citiesIn(form.toName).firstOrNull()?.let { Text("${it.city} · ${Format.utcOffset(it.zone.id)}") } },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DateField("Дата отправления", form.depDate, { form.depDate = it }, Modifier.weight(1.3f))
+            TimeField("Отправление", form.depTime, { form.depTime = it }, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DateField("Дата прибытия", form.arrDate ?: form.depDate, { form.arrDate = it }, Modifier.weight(1.3f))
+            TimeField("Прибытие", form.arrTime, { form.arrTime = it }, Modifier.weight(1f), required = false)
+        }
+        Text("Время — местное для станции", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(form.car, { form.car = it.take(3) }, label = { Text("Вагон") }, singleLine = true, modifier = Modifier.weight(1f))
+            OutlinedTextField(form.seat, { form.seat = it.take(4) }, label = { Text("Место") }, singleLine = true, modifier = Modifier.weight(1f))
+        }
+        OutlinedTextField(form.booking, { form.booking = it }, label = { Text("Номер заказа") }, singleLine = true, modifier = Modifier.fillMaxWidth())
     }
 }
 
