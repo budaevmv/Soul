@@ -8,6 +8,20 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material.icons.filled.Train
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.travelplanner.app.ui.theme.TripColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -148,7 +162,7 @@ fun TripsScreen(
                     Text(Format.day(next.at, next.zone), style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(4.dp))
                     TimelineCard(
-                        next, c.ref,
+                        next, c,
                         onEditFlight = { onOpenTrip(it.tripId) },
                         onEditStay = { onOpenTrip(it.tripId) },
                         highlight = true, now = now,
@@ -214,25 +228,40 @@ private fun EmptyState() {
 private fun TripCard(trip: Trip, flights: List<Flight>, stays: List<Stay>, c: AppContainer, now: Long, onClick: () -> Unit) {
     val starts = (flights.map { it.departureMillis to it.departureZone } + stays.map { it.checkInMillis to it.zone }).minByOrNull { it.first }
     val ends = (flights.map { (it.arrivalMillis ?: it.departureMillis) to it.arrivalZone } + stays.map { it.checkOutMillis to it.zone }).maxByOrNull { it.first }
-    val route = flights.sortedBy { it.departureMillis }.let { fs ->
-        if (fs.isEmpty()) "" else (listOf(fs.first().fromCity(c.ref)) + fs.map { it.toCity(c.ref) })
-            .fold(mutableListOf<String>()) { acc, s -> if (acc.lastOrNull() != s) acc += s; acc }.joinToString(" → ")
-    }
+    val stops = c.itinerary.stops(flights, stays)
+    val flags = stops.mapNotNull { s -> s.country?.let { c.ref.country(it)?.flag } }.distinct().joinToString(" ")
+    val route = stops.joinToString(" → ") { it.city }
     val finished = ends != null && ends.first < now
-    Card(
-        Modifier.fillMaxWidth().clickable(onClick = onClick),
-        colors = if (finished) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) else CardDefaults.cardColors(),
+    val status = when {
+        starts == null -> "Пока пусто"
+        now < starts.first -> "Через ${Format.countdown(starts.first, now).removePrefix("через ")}"
+        !finished -> "Сейчас в поездке"
+        else -> "Завершена"
+    }
+    val gradient = if (finished) listOf(Color(0xFF64748B), Color(0xFF475569)) else listOf(TripColors.HeaderStart, TripColors.HeaderEnd)
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(gradient)).clickable(onClick = onClick),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(trip.title, style = MaterialTheme.typography.titleLarge)
+        Icon(
+            if (flights.any { !it.isTrain }) Icons.Default.Flight else if (flights.isNotEmpty()) Icons.Default.Train else Icons.Default.Hotel, null,
+            Modifier.size(120.dp).align(Alignment.CenterEnd).offset(x = 24.dp).rotate(35f),
+            tint = Color.White.copy(alpha = 0.14f),
+        )
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(status, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+            Text((if (flags.isNotBlank()) "$flags  " else "") + trip.title, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             if (starts != null && ends != null) {
-                Text(
-                    "${Format.shortDate(starts.first, starts.second)} — ${Format.shortDate(ends.first, ends.second)}" + if (finished) " · завершена" else "",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Text("${Format.shortDate(starts.first, starts.second)} — ${Format.shortDate(ends.first, ends.second)}", color = Color.White.copy(alpha = 0.9f))
             }
-            if (route.isNotBlank()) Text(route, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-            Text("Перелётов: ${flights.size} · Жильё: ${stays.size}", style = MaterialTheme.typography.bodySmall)
+            if (route.isNotBlank()) Text(route, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                listOfNotNull(
+                    flights.count { !it.isTrain }.takeIf { it > 0 }?.let { "✈ $it" },
+                    flights.count { it.isTrain }.takeIf { it > 0 }?.let { "🚆 $it" },
+                    stays.size.takeIf { it > 0 }?.let { "🏨 $it" },
+                ).joinToString("   "),
+                color = Color.White, style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }

@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
+    id("io.github.takahirom.roborazzi")
 }
 
 android {
@@ -38,6 +39,9 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -74,10 +78,20 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     // Для проверки разбора настоящих PDF на JVM (тот же PDFBox, что и в приложении)
     testImplementation("org.apache.pdfbox:pdfbox:2.0.32")
+    // Скриншоты экранов на JVM (без эмулятора): ./gradlew recordRoborazziDebug
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.32.2")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.32.2")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
 tasks.withType<Test>().configureEach {
     project.findProperty("ticket.pdf")?.let { systemProperty("ticket.pdf", it) }
     project.findProperty("tickets.dir")?.let { systemProperty("tickets.dir", it) }
     testLogging { showStandardStreams = true }
+}
+
+tasks.withType<Test>().configureEach {
+    project.findProperty("screenshots")?.let { systemProperty("screenshots", it) }
 }

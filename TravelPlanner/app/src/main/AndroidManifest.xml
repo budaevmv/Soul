@@ -1,11 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+
+    <!-- Проверяем, установлены ли приложения такси/карт/оплаты (Android 11+) -->
+    <queries>
+        <package android:name="ru.yandex.taxi" />
+        <package android:name="com.ubercab" />
+        <package android:name="ee.mtakso.client" />
+        <package android:name="com.careem.acma" />
+        <package android:name="com.grabtaxi.passenger" />
+        <package android:name="com.gojek.app" />
+        <package android:name="sinet.startup.inDriver" />
+        <package android:name="com.bitaksi.musteri" />
+        <package android:name="com.sdu.didi.psnger" />
+        <package android:name="com.kakao.taxi" />
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="ru.yandex.yandexmaps" />
+        <package android:name="ru.dublgis.dublgis" />
+        <package android:name="com.mapswithme.maps.pro" />
+        <package android:name="com.autonavi.minimap" />
+        <package android:name="com.nhn.android.nmap" />
+        <package android:name="com.tranzmate" />
+        <package android:name="com.citymapper.app.release" />
+        <package android:name="ru.yandex.metro" />
+        <package android:name="com.eg.android.AlipayGphone" />
+        <package android:name="com.tencent.mm" />
+        <package android:name="my.com.tngdigital.ewallet" />
+        <package android:name="kz.kaspi.mobile" />
+        <package android:name="uz.dida.payme" />
+        <package android:name="com.google.android.apps.translate" />
+        <package android:name="ru.yandex.translate" />
+        <package android:name="com.mobillium.airalo" />
+        <package android:name="org.telegram.messenger" />
+        <package android:name="com.whatsapp" />
+        <package android:name="im.thebot.messenger" />
+        <package android:name="com.booking" />
+        <package android:name="com.google.android.gms" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
 
     <application
         android:name=".TravelApp"

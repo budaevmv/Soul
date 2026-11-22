@@ -33,8 +33,12 @@ class AppContainer(context: Context) {
     val settings = Settings(context)
     val scheduler by lazy { ReminderScheduler(context, settings, ref) }
     val calendar by lazy { CalendarSync(context, ref) }
-    val repository by lazy { TripRepository(db, scheduler, calendar, settings, Itinerary(ref), TravelTime(context)) }
+    val repository by lazy { TripRepository(db, scheduler, calendar, settings, itinerary, travelTime) }
     val importer by lazy { TicketImporter(context, ref) }
+    val appGuide by lazy { com.travelplanner.app.reference.AppGuide.load(context) }
+    val travelTime by lazy { TravelTime(context) }
+    val weather by lazy { com.travelplanner.app.data.WeatherService(context) }
+    val itinerary by lazy { Itinerary(ref) }
     val assembler by lazy { TripAssembler(importer, repository, ref, settings) }
 
     /** Черновики для редакторов: пункты, распознанные не полностью. */

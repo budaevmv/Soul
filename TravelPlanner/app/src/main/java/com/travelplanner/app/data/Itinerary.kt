@@ -11,6 +11,16 @@ class Itinerary(private val ref: ReferenceData) {
     fun arrivalCity(f: Flight): String =
         if (f.isTrain) ref.citiesIn(f.toName).firstOrNull()?.city ?: f.toName else ref.cityName(f.toIata)
 
+    /** Отель, из которого выезжаем на этот рейс/поезд: живём в нём перед отправлением и в том же городе. */
+    fun stayBefore(f: Flight, stays: List<Stay>): Stay? {
+        val city = departureCity(f)
+        return stays.filter { s -> s.tripId == f.tripId && s.checkInMillis < f.departureMillis && s.checkOutMillis + 6 * 3_600_000L > f.departureMillis }
+            .filter { s -> stayCity(s).let { it == null || it == city } }
+            .maxByOrNull { it.checkInMillis }
+    }
+
+    fun airportName(iata: String): String = ref.airport(iata)?.let { "${it.name} ${it.city} $iata" } ?: "$iata airport"
+
     fun departureCity(f: Flight): String =
         if (f.isTrain) ref.citiesIn(f.fromName).firstOrNull()?.city ?: f.fromName else ref.cityName(f.fromIata)
 
@@ -51,6 +61,39 @@ class Itinerary(private val ref: ReferenceData) {
         return moves.filter { it.tripId == s.tripId && it.departureMillis > arrivedAt && it.departureMillis - it.remindMinutes * 60_000L < s.checkOutMillis }
             .minByOrNull { it.departureMillis }
             ?.let { (it.departureMillis - it.remindMinutes * 60_000L - 60_000L).coerceAtLeast(arrivedAt + 1) }
+    }
+
+    /** Остановка: город, где проводим время (не пересадка и не дом). */
+    data class Stop(val city: String, val country: String?, val start: Long, val end: Long, val zone: String)
+
+    fun arrivalCountry(f: Flight): String? =
+        if (f.isTrain) ref.citiesIn(f.toName).firstOrNull()?.country else ref.airport(f.toIata)?.country
+
+    fun departureCountry(f: Flight): String? =
+        if (f.isTrain) ref.citiesIn(f.fromName).firstOrNull()?.country else ref.airport(f.fromIata)?.country
+
+    fun stops(flights: List<Flight>, stays: List<Stay>): List<Stop> {
+        val moves = flights.sortedBy { it.departureMillis }
+        if (moves.isEmpty()) {
+            return stays.map { s ->
+                val a = ref.citiesIn(s.address + " " + s.name).firstOrNull()
+                Stop(a?.city ?: s.name, a?.country, s.checkInMillis, s.checkOutMillis, s.zone)
+            }
+        }
+        val home = departureCity(moves.first())
+        val result = mutableListOf<Stop>()
+        moves.forEachIndexed { i, f ->
+            val next = moves.getOrNull(i + 1)
+            if (next != null && connectionFrom(next, moves, stays)?.id == f.id) return@forEachIndexed
+            val city = arrivalCity(f)
+            if (city == home && next == null) return@forEachIndexed
+            val start = f.arrivalMillis ?: f.departureMillis
+            val end = next?.departureMillis ?: (start + DAY)
+            val last = result.lastOrNull()
+            if (last != null && last.city == city) result[result.lastIndex] = last.copy(end = end)
+            else result += Stop(city, arrivalCountry(f), start, end, f.arrivalZone)
+        }
+        return result
     }
 
     companion object {

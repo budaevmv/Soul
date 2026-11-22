@@ -107,18 +107,25 @@ class TripRepository(
     }
 
     /**
-     * Поезд из города, где живём в отеле: «пора выезжать» = дорога от отеля до вокзала + 30 минут.
-     * Если время задано вручную или координаты не нашлись — не меняем.
+     * Выезд из отеля: дорога (пешком/такси по координатам) + запас — 30 мин на вокзале,
+     * 2 ч до внутреннего рейса, 2,5 ч до международного. Из дома — как в настройках (3 ч / 1 ч).
+     * Время, заданное вручную, не трогаем; без координат тоже ничего не меняем.
      */
     private suspend fun adjustTrainLeaveTimes(flights: List<Flight>, stays: List<Stay>) {
         val tt = travelTime ?: return
         for (f in flights) {
-            if (!f.isTrain || f.departureMillis < System.currentTimeMillis() || settings.isManualRemind(f.id)) continue
-            val stay = stays.filter { s -> s.checkInMillis < f.departureMillis && s.checkOutMillis + 6 * 3_600_000L > f.departureMillis }
-                .maxByOrNull { it.checkInMillis } ?: continue
+            if (f.departureMillis < System.currentTimeMillis() || settings.isManualRemind(f.id)) continue
+            if (itinerary.connectionFrom(f, flights, stays) != null) continue
+            val stay = itinerary.stayBefore(f, stays) ?: continue
             val city = itinerary.departureCity(f)
-            val est = tt.estimate("${stay.address}, ${stay.name}".trim(',', ' '), "вокзал ${f.fromName}, $city") ?: continue
-            val minutes = (((est.minutes + TravelTime.STATION_BUFFER_MIN) + 4) / 5 * 5).coerceIn(20, 180)
+            val target = if (f.isTrain) "вокзал ${f.fromName}, $city" else "аэропорт ${itinerary.airportName(f.fromIata)}"
+            val est = tt.estimate("${stay.address}, ${stay.name}".trim(',', ' '), target) ?: continue
+            val buffer = when {
+                f.isTrain -> TravelTime.STATION_BUFFER_MIN
+                itinerary.departureCountry(f) == itinerary.arrivalCountry(f) -> 120
+                else -> 150
+            }
+            val minutes = ((est.minutes + buffer + 4) / 5 * 5).coerceIn(20, 240)
             if (minutes != f.remindMinutes) db.flights().update(f.copy(remindMinutes = minutes))
         }
     }

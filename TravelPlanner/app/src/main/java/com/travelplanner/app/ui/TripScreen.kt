@@ -2,7 +2,10 @@ package com.travelplanner.app.ui
 
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,6 +26,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.AlertDialog
@@ -73,6 +77,7 @@ fun TripScreen(
     onImport: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val trip by c.repository.trip(tripId).collectAsState(initial = null)
     val flights by c.repository.flights(tripId).collectAsState(initial = emptyList())
     val stays by c.repository.stays(tripId).collectAsState(initial = emptyList())
@@ -98,6 +103,10 @@ fun TripScreen(
                             menu = false
                             onEditStay(0)
                         })
+                        DropdownMenuItem(text = { Text("Поделиться планом") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = {
+                            menu = false
+                            sharePlan(context, c, trip?.title ?: "Поездка", flights, stays)
+                        })
                         DropdownMenuItem(text = { Text("Переименовать") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = {
                             menu = false
                             rename = true
@@ -111,7 +120,7 @@ fun TripScreen(
             )
         },
         floatingActionButton = {
-            if (tab == 0 || tab == 3) {
+            if (tab == 0 || tab == 5) {
                 ExtendedFloatingActionButton(
                     onClick = onImport,
                     icon = { Icon(Icons.Default.UploadFile, null) },
@@ -121,15 +130,17 @@ fun TripScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            val tabs = listOf("План", "Авиакомпании", "Страна", "Сборы и документы")
+            val tabs = listOf("🗓 План", "☀️ Погода и вещи", "📱 Приложения", "🌍 Страна", "✈️ Авиакомпании", "📄 Документы")
             ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
                 tabs.forEachIndexed { i, t -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) }) }
             }
             when (tab) {
                 0 -> PlanTab(c, flights, stays, onEditFlight, onEditStay)
-                1 -> AirlinesTab(c.ref, flights)
-                2 -> CountriesTab(c.ref, flights)
-                3 -> PackingTab(c, tripId, flights)
+                1 -> WeatherPackingTab(c, tripId, flights, stays)
+                2 -> AppsTab(c, flights, stays)
+                3 -> CountriesTab(c.ref, flights)
+                4 -> AirlinesTab(c.ref, flights)
+                5 -> DocumentsTab(c, tripId)
             }
         }
     }
@@ -181,32 +192,42 @@ private fun PlanTab(
     val entries = remember(flights, stays) { Timeline.build(flights, stays, c.ref) }
     val now = System.currentTimeMillis()
     val next = Timeline.next(entries, now)
-    if (entries.isEmpty()) {
-        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("План пока пуст", style = MaterialTheme.typography.titleLarge)
-            Text("Нажмите «+», чтобы загрузить билет или бронь отеля, либо добавить перелёт вручную.")
-        }
-        return
-    }
     LazyColumn(
         contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 96.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        item { TripHeader(c, flights, stays, now) }
+        if (entries.isEmpty()) {
+            item {
+                Column(Modifier.padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("План пока пуст", style = MaterialTheme.typography.titleLarge)
+                    Text("Нажмите «Загрузить документы» и выберите билеты и брони — план соберётся сам.")
+                }
+            }
+        }
         var lastDay = ""
         entries.forEachIndexed { index, e ->
             val day = Format.day(e.at, e.zone)
             if (day != lastDay) {
                 lastDay = day
                 item(key = "day-$index") {
-                    Text(day, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 6.dp))
+                    Text(
+                        day, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 50.dp, top = 12.dp, bottom = 6.dp),
+                    )
                 }
             }
             item(key = "entry-$index") {
                 Column {
                     if (e === next) {
-                        Text("Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                        Text(
+                            "Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(start = 50.dp, bottom = 4.dp),
+                        )
                     }
-                    TimelineCard(e, c.ref, { onEditFlight(it.id) }, { onEditStay(it.id) }, highlight = e === next, now = now)
+                    TimelineRow(
+                        e, c, { onEditFlight(it.id) }, { onEditStay(it.id) },
+                        first = index == 0, last = index == entries.lastIndex, highlight = e === next, now = now,
+                    )
                 }
             }
         }
@@ -256,42 +277,31 @@ private fun CountriesTab(ref: ReferenceData, flights: List<Flight>) {
 }
 
 @Composable
-private fun PackingTab(c: AppContainer, tripId: Long, flights: List<Flight>) {
+private fun DocumentsTab(c: AppContainer, tripId: Long) {
     val context = LocalContext.current
-    val ref = c.ref
     val docs by c.repository.documents(tripId).collectAsState(initial = emptyList())
-    val countries = destinationCountries(ref, flights)
-    val checklist = remember(countries) {
-        (ReferenceData.genericChecklist + countries.flatMap { ref.country(it)?.take.orEmpty() }).distinct()
-    }
-    LazyColumn(contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("Документы (доступны офлайн)", style = MaterialTheme.typography.titleMedium)
-                    if (docs.isEmpty()) Text("Загруженные билеты и брони появятся здесь.", style = MaterialTheme.typography.bodyMedium)
-                    docs.forEach { d ->
-                        Row(
-                            Modifier.fillMaxWidth().clickable { openDocument(context, File(d.path)) }.padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                when (d.kind) {
-                                    "FLIGHT" -> Icons.Default.Flight
-                                    "TRAIN" -> Icons.Default.Train
-                                    "HOTEL" -> Icons.Default.Hotel
-                                    else -> Icons.Default.Description
-                                },
-                                null, tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(d.title)
-                        }
+            Text("Все загруженные файлы поездки — открываются без интернета", style = MaterialTheme.typography.bodyMedium)
+        }
+        if (docs.isEmpty()) item { Text("Загруженные билеты и брони появятся здесь.") }
+        items(docs) { d ->
+            val (icon, color) = when (d.kind) {
+                "FLIGHT" -> Icons.Default.Flight to com.travelplanner.app.ui.theme.TripColors.Flight
+                "TRAIN" -> Icons.Default.Train to com.travelplanner.app.ui.theme.TripColors.Train
+                "HOTEL" -> Icons.Default.Hotel to com.travelplanner.app.ui.theme.TripColors.Hotel
+                else -> Icons.Default.Description to com.travelplanner.app.ui.theme.TripColors.Checkout
+            }
+            Card(Modifier.fillMaxWidth().clickable { openDocument(context, File(d.path)) }) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).background(color, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White)
                     }
+                    Spacer(Modifier.width(12.dp))
+                    Text(d.title, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
-        item { PackingChecklist(tripId, checklist) }
     }
 }
 
