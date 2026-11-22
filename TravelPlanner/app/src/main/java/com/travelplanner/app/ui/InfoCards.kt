@@ -3,7 +3,10 @@ package com.travelplanner.app.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,15 +58,14 @@ fun SectionTitle(text: String) {
 
 @Composable
 fun Bullets(items: List<String>, icon: ImageVector? = null, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.forEach { item ->
             Row(verticalAlignment = Alignment.Top) {
-                if (icon != null) {
-                    Icon(icon, null, Modifier.size(18.dp).padding(top = 2.dp), tint = tint)
-                } else {
-                    Text("•", style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.width(6.dp))
+                Box(
+                    Modifier.padding(top = 8.dp).size(5.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(if (icon != null) tint else MaterialTheme.colorScheme.onSurfaceVariant),
+                )
+                Spacer(Modifier.width(12.dp))
                 Text(item, style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -83,8 +85,8 @@ private fun LabeledText(label: String, value: String) {
 fun AirlineCard(code: String, info: AirlineInfo?, expandedByDefault: Boolean = true) {
     val context = LocalContext.current
     var expanded by rememberSaveable(code) { mutableStateOf(expandedByDefault) }
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Panel {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(info?.name ?: "Авиакомпания $code", style = MaterialTheme.typography.titleLarge)
@@ -127,8 +129,8 @@ fun AirlineCard(code: String, info: AirlineInfo?, expandedByDefault: Boolean = t
 
 @Composable
 fun GeneralRulesCard() {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Panel {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Что нельзя везти: общие правила", style = MaterialTheme.typography.titleMedium)
             SectionTitle("Ручная кладь")
             Bullets(ReferenceData.generalCabinRules, Icons.Default.Block, MaterialTheme.colorScheme.error)
@@ -140,9 +142,9 @@ fun GeneralRulesCard() {
 
 @Composable
 fun CountryCard(code: String, info: CountryInfo?) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("${info?.flag ?: ""} ${info?.name ?: code}".trim(), style = MaterialTheme.typography.headlineSmall)
+    Panel {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(info?.name ?: code, style = MaterialTheme.typography.headlineSmall)
             if (info == null) {
                 Text("Для этой страны пока нет справки. Проверьте визовые и таможенные правила на сайте МИД и консульства.")
                 return@Column
@@ -155,19 +157,19 @@ fun CountryCard(code: String, info: CountryInfo?) {
             LabeledText("Экстренные службы", info.sos)
             LabeledText("Деньги и карты", info.money)
             HorizontalDivider()
-            SectionTitle("📶 Связь и интернет")
+            SectionTitle("Связь и интернет")
             Text(info.connectivity, style = MaterialTheme.typography.bodyMedium)
             val prohibited = info.prohibited + if (info.schengen) ReferenceData.schengenCommon else emptyList()
             if (prohibited.isNotEmpty()) {
-                SectionTitle("⛔ Нельзя ввозить / вывозить")
+                SectionTitle("Нельзя ввозить и вывозить")
                 Bullets(prohibited, Icons.Default.Block, MaterialTheme.colorScheme.error)
             }
             if (info.take.isNotEmpty()) {
-                SectionTitle("🎒 Лучше взять с собой")
+                SectionTitle("Лучше взять с собой")
                 Bullets(info.take, Icons.Default.CheckCircle, MaterialTheme.colorScheme.secondary)
             }
             if (info.tips.isNotEmpty()) {
-                SectionTitle("💡 Полезно знать")
+                SectionTitle("Полезно знать")
                 Bullets(info.tips)
             }
             Text(

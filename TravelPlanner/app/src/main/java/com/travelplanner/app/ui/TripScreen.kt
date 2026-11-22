@@ -26,6 +26,17 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Flight
+import androidx.compose.material.icons.outlined.Hotel
+import androidx.compose.material.icons.outlined.Train
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Train
 import androidx.compose.material.icons.filled.UploadFile
@@ -38,7 +49,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
@@ -90,7 +100,8 @@ fun TripScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(trip?.title ?: "") },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                title = { Text(trip?.title ?: "", style = MaterialTheme.typography.titleLarge, maxLines = 1) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") } },
                 actions = {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "Меню") }
@@ -123,24 +134,50 @@ fun TripScreen(
             if (tab == 0 || tab == 5) {
                 ExtendedFloatingActionButton(
                     onClick = onImport,
-                    icon = { Icon(Icons.Default.UploadFile, null) },
-                    text = { Text("Загрузить документы") },
+                    icon = { Icon(Icons.Outlined.FileUpload, null) },
+                    text = { Text("Документы", style = MaterialTheme.typography.labelLarge) },
+                    containerColor = MaterialTheme.colorScheme.onSurface,
+                    contentColor = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(50),
                 )
             }
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            val tabs = listOf("🗓 План", "☀️ Погода и вещи", "📱 Приложения", "🌍 Страна", "✈️ Авиакомпании", "📄 Документы")
-            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
-                tabs.forEachIndexed { i, t -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) }) }
+            val tabs = listOf("План", "Погода и вещи", "Приложения", "Страна", "Авиакомпании", "Документы")
+            ScrollableTabRow(
+                selectedTabIndex = tab, edgePadding = 16.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = {},
+                indicator = { positions ->
+                    if (tab < positions.size) {
+                        Box(
+                            Modifier.tabIndicatorOffset(positions[tab]).height(3.dp).padding(horizontal = 28.dp)
+                                .clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.onSurface),
+                        )
+                    }
+                },
+            ) {
+                tabs.forEachIndexed { i, t ->
+                    Tab(
+                        selected = tab == i, onClick = { tab = i },
+                        selectedContentColor = MaterialTheme.colorScheme.onSurface,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = { Text(t, style = MaterialTheme.typography.titleSmall) },
+                    )
+                }
             }
-            when (tab) {
-                0 -> PlanTab(c, flights, stays, onEditFlight, onEditStay)
-                1 -> WeatherPackingTab(c, tripId, flights, stays)
-                2 -> AppsTab(c, flights, stays)
-                3 -> CountriesTab(c.ref, flights)
-                4 -> AirlinesTab(c.ref, flights)
-                5 -> DocumentsTab(c, tripId)
+            Crossfade(tab, label = "tabs") { current ->
+                Box(Modifier.fillMaxSize()) {
+                    when (current) {
+                        0 -> PlanTab(c, flights, stays, onEditFlight, onEditStay)
+                        1 -> WeatherPackingTab(c, tripId, flights, stays)
+                        2 -> AppsTab(c, flights, stays)
+                        3 -> CountriesTab(c.ref, flights)
+                        4 -> AirlinesTab(c.ref, flights)
+                        5 -> DocumentsTab(c, tripId)
+                    }
+                }
             }
         }
     }
@@ -195,7 +232,7 @@ private fun PlanTab(
     LazyColumn(
         contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 96.dp),
     ) {
-        item { TripHeader(c, flights, stays, now) }
+        item { Appear(0, "header") { TripHeader(c, flights, stays, now) } }
         if (entries.isEmpty()) {
             item {
                 Column(Modifier.padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -210,24 +247,25 @@ private fun PlanTab(
             if (day != lastDay) {
                 lastDay = day
                 item(key = "day-$index") {
-                    Text(
-                        day, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 50.dp, top = 12.dp, bottom = 6.dp),
-                    )
+                    Appear(index, "day-$index") {
+                        SectionLabel(day, Modifier.padding(start = 42.dp, top = 14.dp, bottom = 12.dp))
+                    }
                 }
             }
             item(key = "entry-$index") {
-                Column {
-                    if (e === next) {
-                        Text(
-                            "Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(start = 50.dp, bottom = 4.dp),
+                Appear(index, "entry-$index") {
+                    Column {
+                        if (e === next) {
+                            Text(
+                                "Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(start = 42.dp, bottom = 6.dp),
+                            )
+                        }
+                        TimelineRow(
+                            e, c, { onEditFlight(it.id) }, { onEditStay(it.id) },
+                            first = index == 0, last = index == entries.lastIndex, highlight = e === next, now = now,
                         )
                     }
-                    TimelineRow(
-                        e, c, { onEditFlight(it.id) }, { onEditStay(it.id) },
-                        first = index == 0, last = index == entries.lastIndex, highlight = e === next, now = now,
-                    )
                 }
             }
         }
@@ -287,16 +325,14 @@ private fun DocumentsTab(c: AppContainer, tripId: Long) {
         if (docs.isEmpty()) item { Text("Загруженные билеты и брони появятся здесь.") }
         items(docs) { d ->
             val (icon, color) = when (d.kind) {
-                "FLIGHT" -> Icons.Default.Flight to com.travelplanner.app.ui.theme.TripColors.Flight
-                "TRAIN" -> Icons.Default.Train to com.travelplanner.app.ui.theme.TripColors.Train
-                "HOTEL" -> Icons.Default.Hotel to com.travelplanner.app.ui.theme.TripColors.Hotel
-                else -> Icons.Default.Description to com.travelplanner.app.ui.theme.TripColors.Checkout
+                "FLIGHT" -> Icons.Outlined.Flight to com.travelplanner.app.ui.theme.TripColors.Flight
+                "TRAIN" -> Icons.Outlined.Train to com.travelplanner.app.ui.theme.TripColors.Train
+                "HOTEL" -> Icons.Outlined.Hotel to com.travelplanner.app.ui.theme.TripColors.Hotel
+                else -> Icons.Outlined.Description to com.travelplanner.app.ui.theme.TripColors.Checkout
             }
-            Card(Modifier.fillMaxWidth().clickable { openDocument(context, File(d.path)) }) {
-                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).background(color, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(icon, null, tint = androidx.compose.ui.graphics.Color.White)
-                    }
+            Panel(onClick = { openDocument(context, File(d.path)) }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = color)
                     Spacer(Modifier.width(12.dp))
                     Text(d.title, style = MaterialTheme.typography.bodyLarge)
                 }

@@ -6,7 +6,11 @@
 
 | Главная | План поездки | Вещи | Приложения |
 |---|---|---|---|
+| ![](docs/screens/5_dark_home.png) | ![](docs/screens/6_dark_plan.png) | ![](docs/screens/8_dark_packing.png) | ![](docs/screens/7_dark_apps.png) |
 | ![](docs/screens/1_home.png) | ![](docs/screens/2_plan.png) | ![](docs/screens/3_packing.png) | ![](docs/screens/4_apps.png) |
+
+Дизайн: шрифт Manrope (SIL OFL, встроен — работает и без сервисов Google, лицензия в `docs/Manrope-OFL.txt`),
+тёмная и светлая темы, без рамок и плашек, плавные анимации появления и переходов.
 
 Скриншоты обновляются командой `./gradlew testDebugUnitTest --tests '*ScreenshotTest*' -Pscreenshots=true -Proborazzi.test.record=true`.
 

@@ -74,9 +74,27 @@ class ScreenshotTest {
     fun trip() {
         compose.setContent { TravelTheme { TripScreen(c, tripId, {}, {}, {}, {}) } }
         shot("2_plan")
-        listOf("☀️ Погода и вещи" to "3_packing", "📱 Приложения" to "4_apps").forEach { (tab, file) ->
+        listOf("Погода и вещи" to "3_packing", "Приложения" to "4_apps").forEach { (tab, file) ->
             compose.onNodeWithText(tab).performClick()
             shot(file)
         }
+    }
+
+    @Test
+    @Config(qualifiers = "+night")
+    fun darkHome() {
+        compose.setContent { TravelTheme { TripsScreen(c, {}, {}) } }
+        shot("5_dark_home")
+    }
+
+    @Test
+    @Config(qualifiers = "+night")
+    fun darkPlan() {
+        compose.setContent { TravelTheme { TripScreen(c, tripId, {}, {}, {}, {}) } }
+        shot("6_dark_plan")
+        compose.onNodeWithText("Приложения").performClick()
+        shot("7_dark_apps")
+        compose.onNodeWithText("Погода и вещи").performClick()
+        shot("8_dark_packing")
     }
 }

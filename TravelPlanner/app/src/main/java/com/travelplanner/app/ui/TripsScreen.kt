@@ -21,7 +21,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import com.travelplanner.app.ui.theme.TripColors
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -48,7 +51,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Switch
@@ -120,61 +122,65 @@ fun TripsScreen(
     val tripTitles = trips.associate { it.id to it.title }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Мои поездки") },
-                actions = { IconButton(onClick = { showSettings = true }) { Icon(Icons.Default.Settings, "Настройки") } },
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onImport,
-                icon = { Icon(Icons.Default.UploadFile, null) },
-                text = { Text("Загрузить документы") },
+                icon = { Icon(Icons.Outlined.FileUpload, null) },
+                text = { Text("Загрузить документы", style = MaterialTheme.typography.labelLarge) },
+                containerColor = MaterialTheme.colorScheme.onSurface,
+                contentColor = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(50),
             )
         },
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 140.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(20.dp, 12.dp, 20.dp, 140.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ScreenTitle("Поездки", greeting(), Modifier.weight(1f))
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Outlined.Tune, "Настройки", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             if (!exactAllowed && flights.any { it.departureMillis > now }) {
                 item {
-                    WarningCard(
-                        "Разрешите точные будильники, чтобы напоминание «пора в аэропорт» пришло вовремя.",
-                        "Разрешить",
+                    Panel(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                context.startActivity(
+                                    Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName)),
+                                )
+                            }
+                            exactAllowed = true
+                        },
                     ) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                            context.startActivity(
-                                Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.packageName)),
-                            )
-                        }
-                        exactAllowed = true
+                        Text("Точные напоминания", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Разрешите точные будильники, чтобы «пора выезжать» приходило минута в минуту. Нажмите, чтобы включить.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
                     }
                 }
             }
             if (next != null) {
-                item {
-                    Text("Ближайшее · ${Format.countdown(next.at, now)}", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(6.dp))
-                    Text(tripTitles[next.tripId] ?: "", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-                    Text(Format.day(next.at, next.zone), style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.height(4.dp))
-                    TimelineCard(
-                        next, c,
-                        onEditFlight = { onOpenTrip(it.tripId) },
-                        onEditStay = { onOpenTrip(it.tripId) },
-                        highlight = true, now = now,
-                    )
+                item(key = "next") {
+                    Appear(0, "next") { NextHero(next, c, tripTitles[next.tripId], now) { onOpenTrip(next.tripId) } }
                 }
             }
             if (trips.isEmpty()) {
                 item { EmptyState() }
             } else {
-                item { Text("Поездки", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp)) }
-                items(trips, key = { it.id }) { trip ->
-                    TripCard(trip, flights.filter { it.tripId == trip.id }, stays.filter { it.tripId == trip.id }, c, now) { onOpenTrip(trip.id) }
+                item { SectionLabel("Мои поездки", Modifier.padding(top = 10.dp)) }
+                itemsIndexed(trips, key = { _, t -> t.id }) { i, trip ->
+                    Appear(i + 1, trip.id) {
+                        TripCard(trip, flights.filter { it.tripId == trip.id }, stays.filter { it.tripId == trip.id }, c, now) { onOpenTrip(trip.id) }
+                    }
                 }
             }
         }
@@ -210,17 +216,55 @@ fun TripsScreen(
 
 @Composable
 private fun EmptyState() {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Пока нет поездок", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "Нажмите «Загрузить документы» и отметьте сразу все файлы: авиабилеты, ЖД-билеты, брони отелей " +
-                    "(PDF, скриншоты, фото). Приложение само поймёт, что где, соберёт поездку с маршрутом по дням, " +
-                    "добавит всё в календарь и напомнит, когда выезжать в аэропорт или на вокзал.\n\n" +
-                    "Можно также «Поделиться» файлами из почты или мессенджера прямо в это приложение.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).aurora().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text("Первая поездка", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+        Text(
+            "Загрузите все билеты и брони сразу — авиа, ЖД, отели, PDF или скриншоты. " +
+                "Приложение само соберёт маршрут по дням, добавит его в календарь и напомнит, когда выезжать.",
+            style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f),
+        )
+    }
+}
+
+private fun greeting(): String = when (java.time.LocalTime.now().hour) {
+    in 5..11 -> "Доброе утро"
+    in 12..17 -> "Добрый день"
+    in 18..22 -> "Добрый вечер"
+    else -> "Доброй ночи"
+}
+
+/** Ближайшее событие: крупное время на «сиянии» и живой отсчёт. */
+@Composable
+private fun NextHero(e: TimelineEntry, c: AppContainer, tripTitle: String?, now: Long, onClick: () -> Unit) {
+    val (title, subtitle) = describe(e, c)
+    Column(
+        Modifier.fillMaxWidth().pressable(onClick).clip(RoundedCornerShape(30.dp)).aurora().padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text("БЛИЖАЙШЕЕ · ${Format.countdown(e.at, now).uppercase()}", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+        Text(Format.time(e.at, e.zone), style = MaterialTheme.typography.displayLarge, color = Color.White)
+        Text(title, style = MaterialTheme.typography.titleLarge, color = Color.White)
+        if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
+        Text(
+            listOfNotNull(Format.day(e.at, e.zone), tripTitle).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+private fun describe(e: TimelineEntry, c: AppContainer): Pair<String, String> {
+    val ref = c.ref
+    return when (e) {
+        is TimelineEntry.GoToAirport -> (if (e.flight.isTrain) "Выезд на вокзал" else "Выезд в аэропорт") to
+            "${e.flight.title()} · ${e.flight.fromLabel(ref)} → ${e.flight.toLabel(ref)}"
+        is TimelineEntry.FlightEntry -> e.flight.title() to "${e.flight.fromLabel(ref)} → ${e.flight.toLabel(ref)}"
+        is TimelineEntry.Layover -> "Пересадка" to (ref.airport(e.flight.fromIata)?.city ?: e.flight.fromIata)
+        is TimelineEntry.Transfer -> "В «${e.stay.name}»" to e.stay.address
+        is TimelineEntry.CheckIn -> "Заселение" to e.stay.name
+        is TimelineEntry.CheckOut -> "Выезд из отеля" to e.stay.name
     }
 }
 
@@ -229,40 +273,31 @@ private fun TripCard(trip: Trip, flights: List<Flight>, stays: List<Stay>, c: Ap
     val starts = (flights.map { it.departureMillis to it.departureZone } + stays.map { it.checkInMillis to it.zone }).minByOrNull { it.first }
     val ends = (flights.map { (it.arrivalMillis ?: it.departureMillis) to it.arrivalZone } + stays.map { it.checkOutMillis to it.zone }).maxByOrNull { it.first }
     val stops = c.itinerary.stops(flights, stays)
-    val flags = stops.mapNotNull { s -> s.country?.let { c.ref.country(it)?.flag } }.distinct().joinToString(" ")
-    val route = stops.joinToString(" → ") { it.city }
     val finished = ends != null && ends.first < now
     val status = when {
-        starts == null -> "Пока пусто"
-        now < starts.first -> "Через ${Format.countdown(starts.first, now).removePrefix("через ")}"
-        !finished -> "Сейчас в поездке"
-        else -> "Завершена"
+        starts == null -> "пока пусто"
+        now < starts.first -> Format.countdown(starts.first, now)
+        !finished -> "сейчас в поездке"
+        else -> "завершена"
     }
-    val gradient = if (finished) listOf(Color(0xFF64748B), Color(0xFF475569)) else listOf(TripColors.HeaderStart, TripColors.HeaderEnd)
-    Box(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.linearGradient(gradient)).clickable(onClick = onClick),
-    ) {
-        Icon(
-            if (flights.any { !it.isTrain }) Icons.Default.Flight else if (flights.isNotEmpty()) Icons.Default.Train else Icons.Default.Hotel, null,
-            Modifier.size(120.dp).align(Alignment.CenterEnd).offset(x = 24.dp).rotate(35f),
-            tint = Color.White.copy(alpha = 0.14f),
-        )
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(status, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
-            Text((if (flags.isNotBlank()) "$flags  " else "") + trip.title, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            if (starts != null && ends != null) {
-                Text("${Format.shortDate(starts.first, starts.second)} — ${Format.shortDate(ends.first, ends.second)}", color = Color.White.copy(alpha = 0.9f))
+    Panel(onClick = onClick, modifier = Modifier.alpha(if (finished) 0.6f else 1f)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel(status, Modifier.weight(1f))
+            if (!finished && starts != null && now >= starts.first) {
+                Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.secondary))
             }
-            if (route.isNotBlank()) Text(route, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
-            Text(
-                listOfNotNull(
-                    flights.count { !it.isTrain }.takeIf { it > 0 }?.let { "✈ $it" },
-                    flights.count { it.isTrain }.takeIf { it > 0 }?.let { "🚆 $it" },
-                    stays.size.takeIf { it > 0 }?.let { "🏨 $it" },
-                ).joinToString("   "),
-                color = Color.White, style = MaterialTheme.typography.labelLarge,
-            )
         }
+        Text(trip.title, style = MaterialTheme.typography.headlineSmall)
+        if (stops.isNotEmpty()) Text(stops.joinToString("  ·  ") { it.city }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            listOfNotNull(
+                if (starts != null && ends != null) "${Format.shortDate(starts.first, starts.second)} — ${Format.shortDate(ends.first, ends.second)}" else null,
+                flights.count { !it.isTrain }.takeIf { it > 0 }?.let { "$it ${plural(it, "перелёт", "перелёта", "перелётов")}" },
+                flights.count { it.isTrain }.takeIf { it > 0 }?.let { "$it ${plural(it, "поезд", "поезда", "поездов")}" },
+                stays.size.takeIf { it > 0 }?.let { "$it ${plural(it, "отель", "отеля", "отелей")}" },
+            ).joinToString("  ·  "),
+            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

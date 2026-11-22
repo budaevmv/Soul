@@ -10,35 +10,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.DirectionsBus
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.FlightLand
-import androidx.compose.material.icons.filled.Hotel
-import androidx.compose.material.icons.filled.LocalTaxi
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Radar
-import androidx.compose.material.icons.filled.SyncAlt
-import androidx.compose.material.icons.filled.Train
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
+import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.DirectionsBus
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Flight
+import androidx.compose.material.icons.outlined.Hotel
+import androidx.compose.material.icons.outlined.LocalTaxi
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.Radar
+import androidx.compose.material.icons.outlined.SyncAlt
+import androidx.compose.material.icons.outlined.Train
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -130,16 +123,19 @@ fun Stay.placeQuery(): String = "$name, $address".trim(',', ' ')
 fun Flight.arrivalPlaceQuery(ref: ReferenceData): String = if (isTrain) "вокзал $toName" else airportQuery(ref, toIata)
 
 /** Цвет и иконка пункта маршрута. */
+@Composable
 private fun style(e: TimelineEntry): Pair<Color, ImageVector> = when (e) {
-    is TimelineEntry.GoToAirport -> TripColors.Road to Icons.Default.DirectionsCar
-    is TimelineEntry.FlightEntry -> if (e.flight.isTrain) TripColors.Train to Icons.Default.Train else TripColors.Flight to Icons.Default.Flight
-    is TimelineEntry.Layover -> TripColors.Layover to Icons.Default.SyncAlt
-    is TimelineEntry.Transfer -> TripColors.Road to Icons.Default.LocalTaxi
-    is TimelineEntry.CheckIn -> TripColors.Hotel to Icons.Default.Hotel
-    is TimelineEntry.CheckOut -> TripColors.Checkout to Icons.AutoMirrored.Filled.Logout
+    is TimelineEntry.GoToAirport -> TripColors.Road to Icons.Outlined.DirectionsCar
+    is TimelineEntry.FlightEntry -> if (e.flight.isTrain) TripColors.Train to Icons.Outlined.Train else TripColors.Flight to Icons.Outlined.Flight
+    is TimelineEntry.Layover -> TripColors.Layover to Icons.Outlined.SyncAlt
+    is TimelineEntry.Transfer -> TripColors.Road to Icons.Outlined.LocalTaxi
+    is TimelineEntry.CheckIn -> TripColors.Hotel to Icons.Outlined.Hotel
+    is TimelineEntry.CheckOut -> TripColors.Checkout to Icons.AutoMirrored.Outlined.Logout
 }
 
-/** Строка ленты: слева линия маршрута с цветным значком, справа карточка. */
+private fun isMajor(e: TimelineEntry) = e is TimelineEntry.FlightEntry || e is TimelineEntry.CheckIn
+
+/** Строка ленты: тонкая линия маршрута с иконкой без рамки, справа — содержимое. */
 @Composable
 fun TimelineRow(
     entry: TimelineEntry,
@@ -153,26 +149,24 @@ fun TimelineRow(
 ) {
     val (color, icon) = style(entry)
     val past = entry.at < now && !highlight
-    val lineColor = color.copy(alpha = 0.35f)
-    // Линию рисуем фоном строки — без измерения «внутренней» высоты карточки
+    val major = isMajor(entry)
+    val lineColor = MaterialTheme.colorScheme.outline
+    val iconTop = if (major) 22.dp else 4.dp
     Row(
-        Modifier.fillMaxWidth().alpha(if (past) 0.55f else 1f).drawBehind {
-            val x = 22.dp.toPx()
-            val iconCenter = 31.dp.toPx()
-            drawLine(
-                lineColor, Offset(x, if (first) iconCenter else 0f), Offset(x, if (last) iconCenter else size.height),
-                strokeWidth = 3.dp.toPx(),
-            )
+        Modifier.fillMaxWidth().alpha(if (past) 0.45f else 1f).drawBehind {
+            val x = 16.dp.toPx()
+            val gapTop = iconTop.toPx() - 6.dp.toPx()
+            val gapBottom = iconTop.toPx() + 26.dp.toPx()
+            val stroke = 1.dp.toPx()
+            if (!first) drawLine(lineColor, Offset(x, 0f), Offset(x, gapTop), strokeWidth = stroke)
+            if (!last) drawLine(lineColor, Offset(x, gapBottom), Offset(x, size.height), strokeWidth = stroke)
         },
     ) {
-        Column(Modifier.width(44.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(14.dp))
-            Box(Modifier.size(34.dp).background(color, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(icon, null, Modifier.size(19.dp), tint = Color.White)
-            }
+        Box(Modifier.width(32.dp).padding(top = iconTop), contentAlignment = Alignment.TopCenter) {
+            Icon(icon, null, Modifier.size(20.dp), tint = color)
         }
-        Spacer(Modifier.width(6.dp))
-        Box(Modifier.weight(1f).padding(bottom = 10.dp)) {
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f).padding(bottom = if (major) 14.dp else 18.dp)) {
             TimelineCard(entry, c, onEditFlight, onEditStay, highlight, now, color)
         }
     }
@@ -194,161 +188,179 @@ fun TimelineCard(
     val scope = rememberCoroutineScope()
     fun taxi(country: String?, from: String?, to: String?) = scope.launch { Taxi.order(context, c, country, from, to) }
     fun transit(country: String?, from: String?, to: String) = scope.launch { Taxi.transit(context, c, country, from, to) }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val panelColor = if (highlight) accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainer
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        colors = if (highlight) CardDefaults.cardColors(containerColor = accent.copy(alpha = 0.16f)) else CardDefaults.cardColors(),
-    ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            when (entry) {
-                is TimelineEntry.GoToAirport -> {
-                    val f = entry.flight
-                    val country = c.itinerary.departureCountry(f)
-                    val target = f.departurePlaceQuery(ref)
-                    Title(Format.time(entry.at, entry.zone), if (f.isTrain) "Выезд на вокзал" else "Выезд в аэропорт", accent)
-                    if (f.isTrain) {
-                        Text(f.fromName, style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        Text(
-                            (ref.airport(f.fromIata)?.title ?: f.fromIata) + (f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+    when (entry) {
+        is TimelineEntry.GoToAirport -> Minor {
+            val f = entry.flight
+            val country = c.itinerary.departureCountry(f)
+            val target = f.departurePlaceQuery(ref)
+            MinorTitle(Format.time(entry.at, entry.zone), if (f.isTrain) "Выезд на вокзал" else "Выезд в аэропорт", accent, highlight)
+            Text(
+                if (f.isTrain) f.fromName
+                else (ref.airport(f.fromIata)?.title ?: f.fromIata) + (f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                "За ${Format.duration(f.remindMinutes * 60_000L)} до отправления" + (entry.fromStay?.let { " · из «${it.name}»" } ?: "") +
+                    (if (!f.isTrain) ref.airline(f.airlineCode)?.let { " · регистрация до −${it.airportCheckinCloseMinutes} мин" } ?: "" else ""),
+                style = MaterialTheme.typography.bodySmall, color = muted,
+            )
+            Actions {
+                Pill(Icons.Outlined.LocalTaxi, "Такси", { taxi(country, entry.fromStay?.placeQuery(), target) })
+                Pill(Icons.Outlined.DirectionsBus, "Транспорт", { transit(country, entry.fromStay?.placeQuery(), target) })
+                Pill(Icons.Outlined.Map, "Карта", { openMaps(context, target) })
+            }
+        }
+        is TimelineEntry.FlightEntry -> {
+            val f = entry.flight
+            val airline = if (f.isTrain) null else ref.airline(f.airlineCode)
+            Panel(onClick = { onEditFlight(f) }, color = panelColor) {
+                BoardingPass(f, ref, accent)
+                Text(
+                    listOfNotNull(
+                        f.title(), airline?.name,
+                        f.arrivalMillis?.let { "в пути ${Format.duration(it - f.departureMillis)}" },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall, color = muted,
+                )
+                val details = listOfNotNull(
+                    f.departureTerminal.takeIf { it.isNotBlank() }?.let { "Терминал $it" },
+                    f.car.takeIf { it.isNotBlank() }?.let { "Вагон $it" },
+                    f.seat.takeIf { it.isNotBlank() }?.let { "Место $it" },
+                    f.bookingRef.takeIf { it.isNotBlank() }?.let { (if (f.isTrain) "Заказ " else "Бронь ") + it },
+                )
+                if (details.isNotEmpty()) Text(details.joinToString("   "), style = MaterialTheme.typography.labelMedium)
+                if (Format.utcOffset(f.departureZone) != Format.utcOffset(f.arrivalZone)) {
                     Text(
-                        "${f.title()} в ${Format.time(f.departureMillis, f.departureZone)} · выезд за ${Format.duration(f.remindMinutes * 60_000L)}" +
-                            (entry.fromStay?.let { " из «${it.name}»" } ?: ""),
-                        style = MaterialTheme.typography.bodySmall,
+                        "Часовой пояс ${Format.utcOffset(f.departureZone)} → ${Format.utcOffset(f.arrivalZone)}",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary,
                     )
-                    if (!f.isTrain) ref.airline(f.airlineCode)?.let {
-                        Text("Регистрация закрывается за ${it.airportCheckinCloseMinutes} мин до вылета", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Actions {
-                        ActionChip(Icons.Default.LocalTaxi, "Такси") { taxi(country, entry.fromStay?.placeQuery(), target) }
-                        ActionChip(Icons.Default.DirectionsBus, "Транспорт") { transit(country, entry.fromStay?.placeQuery(), target) }
-                        ActionChip(Icons.Default.Map, "Карта") { openMaps(context, target) }
-                    }
                 }
-                is TimelineEntry.FlightEntry -> {
-                    val f = entry.flight
-                    val airline = if (f.isTrain) null else ref.airline(f.airlineCode)
-                    Column(Modifier.clickable { onEditFlight(f) }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Title(Format.time(f.departureMillis, f.departureZone), f.title() + (airline?.let { " · ${it.name}" } ?: ""), accent)
-                        Text("${f.fromLabel(ref)} → ${f.toLabel(ref)}", style = MaterialTheme.typography.titleSmall)
-                        f.arrivalMillis?.let { arrival ->
-                            val sameDay = Format.shortDate(arrival, f.arrivalZone) == Format.shortDate(f.departureMillis, f.departureZone)
-                            Text(
-                                (if (f.isTrain) "Прибытие " else "Прилёт ") + (if (sameDay) "" else Format.shortDate(arrival, f.arrivalZone) + " ") +
-                                    "в ${Format.time(arrival, f.arrivalZone)} по местному · в пути ${Format.duration(arrival - f.departureMillis)}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        val details = listOfNotNull(
-                            f.departureTerminal.takeIf { it.isNotBlank() }?.let { "Терминал $it" },
-                            f.car.takeIf { it.isNotBlank() }?.let { "Вагон $it" },
-                            f.seat.takeIf { it.isNotBlank() }?.let { "Место $it" },
-                            f.bookingRef.takeIf { it.isNotBlank() }?.let { (if (f.isTrain) "Заказ " else "Бронь ") + it },
-                        )
-                        if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
-                        if (Format.utcOffset(f.departureZone) != Format.utcOffset(f.arrivalZone)) {
-                            Text(
-                                "🕒 Смена часового пояса: ${Format.utcOffset(f.departureZone)} → ${Format.utcOffset(f.arrivalZone)}",
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary,
-                            )
-                        }
-                    }
-                    val country = c.itinerary.arrivalCountry(f)
-                    Actions {
-                        if (!f.isTrain) ActionChip(Icons.Default.Radar, "Статус рейса") {
-                            openUrl(context, "https://www.flightradar24.com/data/flights/${(f.airlineCode + f.flightNumber).lowercase()}")
-                        }
-                        if (entry.arrivalActions) {
-                            ActionChip(Icons.Default.LocalTaxi, "Такси") { taxi(country, f.arrivalPlaceQuery(ref), null) }
-                            ActionChip(Icons.Default.DirectionsBus, "Транспорт") {
-                                transit(country, f.arrivalPlaceQuery(ref), "центр ${c.itinerary.arrivalCity(f)}")
-                            }
-                        }
-                    }
-                }
-                is TimelineEntry.Layover -> {
-                    val f = entry.flight
-                    val airport = ref.airport(f.fromIata)
-                    Title(Format.time(entry.at, entry.zone), "Пересадка: ${airport?.city ?: f.fromIata}", accent)
-                    Text(
-                        "${Format.duration(f.departureMillis - entry.prev.arrivalMillis!!)} до вылета ${f.title()} в ${Format.time(f.departureMillis, f.departureZone)}" +
-                            (f.departureTerminal.takeIf { t -> t.isNotBlank() }?.let { t -> ", терминал $t" } ?: ""),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text("Из аэропорта выходить не нужно — следите за табло и выходом на посадку", style = MaterialTheme.typography.bodySmall)
-                }
-                is TimelineEntry.Transfer -> {
-                    val s = entry.stay
-                    val f = entry.flight
-                    val country = c.itinerary.arrivalCountry(f)
-                    Title(Format.time(entry.at, entry.zone), (if (f.isTrain) "С вокзала" else "Из аэропорта") + " — в «${s.name}»", accent)
-                    if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium)
-                    Text("Заселение с ${Format.time(s.checkInMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
-                    c.appGuide.taxiFor(country)?.let { Text("Такси здесь: ${it.name}", style = MaterialTheme.typography.bodySmall) }
-                    Actions {
-                        ActionChip(Icons.Default.LocalTaxi, "Такси") { taxi(country, f.arrivalPlaceQuery(ref), s.placeQuery()) }
-                        ActionChip(Icons.Default.DirectionsBus, "Транспорт") { transit(country, f.arrivalPlaceQuery(ref), s.placeQuery()) }
-                        ActionChip(Icons.AutoMirrored.Filled.DirectionsWalk, "Маршрут") { openMaps(context, s.placeQuery()) }
-                    }
-                }
-                is TimelineEntry.CheckIn -> {
-                    val s = entry.stay
-                    Column(Modifier.clickable { onEditStay(s) }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Title(Format.time(entry.at, s.zone), "Заселение: ${s.name}", accent)
-                        if (entry.at != s.checkInMillis) {
-                            Text("Заселение возможно с ${Format.time(s.checkInMillis, s.zone)}", style = MaterialTheme.typography.bodySmall)
-                        }
-                        if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "До ${Format.dateTime(s.checkOutMillis, s.zone)}" + (s.bookingRef.takeIf { it.isNotBlank() }?.let { " · бронь $it" } ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Actions {
-                        ActionChip(Icons.Default.Map, "На карте") { openMaps(context, s.placeQuery()) }
-                        if (s.phone.isNotBlank()) ActionChip(Icons.Default.Phone, "Позвонить") { dial(context, s.phone) }
-                    }
-                }
-                is TimelineEntry.CheckOut -> {
-                    val s = entry.stay
-                    Column(Modifier.clickable { onEditStay(s) }, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Title(Format.time(entry.at, s.zone), "Выезд: ${s.name}", accent)
-                        Text(
-                            if (entry.at < s.checkOutMillis) "Расчётный час — ${Format.time(s.checkOutMillis, s.zone)}, но выезжать нужно раньше. Не забудьте вещи и сдать ключи."
-                            else "Освободить номер до ${Format.time(s.checkOutMillis, s.zone)}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                val country = c.itinerary.arrivalCountry(f)
+                Actions {
+                    if (!f.isTrain) Pill(Icons.Outlined.Radar, "Статус", {
+                        openUrl(context, "https://www.flightradar24.com/data/flights/${(f.airlineCode + f.flightNumber).lowercase()}")
+                    })
+                    if (entry.arrivalActions) {
+                        Pill(Icons.Outlined.LocalTaxi, "Такси", { taxi(country, f.arrivalPlaceQuery(ref), null) })
+                        Pill(Icons.Outlined.DirectionsBus, "Транспорт", { transit(country, f.arrivalPlaceQuery(ref), "центр ${c.itinerary.arrivalCity(f)}") })
                     }
                 }
             }
+        }
+        is TimelineEntry.Layover -> Minor {
+            val f = entry.flight
+            MinorTitle(Format.time(entry.at, entry.zone), "Пересадка · ${ref.airport(f.fromIata)?.city ?: f.fromIata}", accent, highlight)
+            Text(
+                "${Format.duration(f.departureMillis - entry.prev.arrivalMillis!!)} до вылета ${f.title()}" +
+                    (f.departureTerminal.takeIf { t -> t.isNotBlank() }?.let { t -> " · терминал $t" } ?: "") +
+                    ". Аэропорт покидать не нужно.",
+                style = MaterialTheme.typography.bodySmall, color = muted,
+            )
+        }
+        is TimelineEntry.Transfer -> Minor {
+            val s = entry.stay
+            val f = entry.flight
+            val country = c.itinerary.arrivalCountry(f)
+            MinorTitle(Format.time(entry.at, entry.zone), "В «${s.name}»", accent, highlight)
+            Text(
+                listOfNotNull(
+                    s.address.takeIf { it.isNotBlank() },
+                    c.appGuide.taxiFor(country)?.let { "такси здесь — ${it.name}" },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall, color = muted,
+            )
+            Actions {
+                Pill(Icons.Outlined.LocalTaxi, "Такси", { taxi(country, f.arrivalPlaceQuery(ref), s.placeQuery()) }, filled = true)
+                Pill(Icons.Outlined.DirectionsBus, "Транспорт", { transit(country, f.arrivalPlaceQuery(ref), s.placeQuery()) })
+                Pill(Icons.AutoMirrored.Outlined.DirectionsWalk, "Маршрут", { openMaps(context, s.placeQuery()) })
+            }
+        }
+        is TimelineEntry.CheckIn -> {
+            val s = entry.stay
+            Panel(onClick = { onEditStay(s) }, color = panelColor) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(Format.time(entry.at, s.zone), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Light, color = accent)
+                    Spacer(Modifier.width(10.dp))
+                    SectionLabel("заселение", Modifier.padding(bottom = 4.dp))
+                }
+                Text(s.name, style = MaterialTheme.typography.titleLarge)
+                if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium, color = muted)
+                Text(
+                    listOfNotNull(
+                        if (entry.at != s.checkInMillis) "заселение с ${Format.time(s.checkInMillis, s.zone)}" else null,
+                        "до ${Format.dateTime(s.checkOutMillis, s.zone)}",
+                        s.bookingRef.takeIf { it.isNotBlank() }?.let { "бронь $it" },
+                    ).joinToString(" · ").replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Actions {
+                    Pill(Icons.Outlined.Map, "На карте", { openMaps(context, s.placeQuery()) })
+                    if (s.phone.isNotBlank()) Pill(Icons.Outlined.Phone, "Позвонить", { dial(context, s.phone) })
+                }
+            }
+        }
+        is TimelineEntry.CheckOut -> Minor(onClick = { onEditStay(entry.stay) }) {
+            val s = entry.stay
+            MinorTitle(Format.time(entry.at, s.zone), "Выезд из «${s.name}»", accent, highlight)
+            Text(
+                if (entry.at < s.checkOutMillis) "Расчётный час ${Format.time(s.checkOutMillis, s.zone)}, но выехать нужно раньше — к отправлению."
+                else "Освободить номер до ${Format.time(s.checkOutMillis, s.zone)}",
+                style = MaterialTheme.typography.bodySmall, color = muted,
+            )
+        }
+    }
+}
+
+/** Посадочный талон: крупное время и коды/станции, между ними тонкая линия с самолётом/поездом. */
+@Composable
+private fun BoardingPass(f: Flight, ref: ReferenceData, accent: Color) {
+    val arrival = f.arrivalMillis
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(Format.time(f.departureMillis, f.departureZone), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Light)
+            Text(if (f.isTrain) f.fromName else f.fromIata, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(f.fromCity(ref), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Box(Modifier.weight(0.7f).height(24.dp), contentAlignment = Alignment.Center) {
+            val line = MaterialTheme.colorScheme.outline
+            Box(Modifier.fillMaxWidth().height(1.dp).background(line))
+            Icon(
+                if (f.isTrain) Icons.Outlined.Train else Icons.Outlined.Flight, null,
+                Modifier.size(18.dp).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 2.dp).rotate(if (f.isTrain) 0f else 90f),
+                tint = accent,
+            )
+        }
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+            Text(arrival?.let { Format.time(it, f.arrivalZone) } ?: "—", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Light)
+            Text(if (f.isTrain) f.toName else f.toIata, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2, textAlign = TextAlign.End)
+            Text(
+                f.toCity(ref) + (arrival?.let { a -> if (Format.shortDate(a, f.arrivalZone) != Format.shortDate(f.departureMillis, f.departureZone)) ", ${Format.shortDate(a, f.arrivalZone)}" else "" } ?: ""),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.End,
+            )
         }
     }
 }
 
 @Composable
-private fun Title(time: String, title: String, accent: Color) {
+private fun Minor(onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().pressable(onClick), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
+}
+
+@Composable
+private fun MinorTitle(time: String, title: String, accent: Color, highlight: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(time, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = accent)
+        Text(time, style = MaterialTheme.typography.titleMedium, color = if (highlight) accent else MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.width(10.dp))
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Actions(content: @Composable () -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { content() }
-}
-
-@Composable
-private fun ActionChip(icon: ImageVector, label: String, onClick: () -> Unit) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = { Icon(icon, null, Modifier.size(AssistChipDefaults.IconSize)) },
-    )
+    Spacer(Modifier.height(4.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { content() }
 }

@@ -1,7 +1,12 @@
 package com.travelplanner.app.ui
 
 import android.os.Build
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,27 +57,34 @@ fun AppsTab(c: AppContainer, flights: List<Flight>, stays: List<Stay>) {
         flights.sortedBy { it.departureMillis }.mapNotNull { c.itinerary.departureCountry(it) }).distinct()
     val abroad = countries.any { it != "RU" }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { PaymentCard(c, countries, noGms, abroad) }
-        items(countries) { code ->
+    LazyColumn(contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (noGms && abroad) item { Appear(0) { NoGoogleCard() } }
+        item { Appear(1) { PaymentCard(c, countries, abroad) } }
+        itemsIndexed(countries) { i, code ->
             val info = c.ref.country(code)
             val apps = c.appGuide.forCountry(code)
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("${info?.flag ?: "🌍"} ${info?.name ?: code}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Group("🚕 Такси", apps.taxi, c)
-                    Group("🗺 Карты", apps.maps, c)
-                    Group("🚌 Транспорт", apps.transport, c)
-                    Group("💳 Оплата", apps.pay, c)
-                    Group("💬 Связь", apps.other, c)
+            Appear(i + 2, code) {
+                Panel {
+                    SectionLabel("приложения")
+                    Text(info?.name ?: code, style = MaterialTheme.typography.headlineSmall)
+                    Group("Такси", apps.taxi, c)
+                    Group("Карты", apps.maps, c)
+                    Group("Транспорт", apps.transport, c)
+                    Group("Оплата", apps.pay, c)
+                    Group("Связь", apps.other, c)
                 }
             }
         }
         item {
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("🧳 Пригодится в любой поездке", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Скачайте заранее, пока есть быстрый интернет: офлайн-карты городов и языки переводчика.", style = MaterialTheme.typography.bodySmall)
+            Appear(countries.size + 2, "always") {
+                Panel {
+                    SectionLabel("в любой поездке")
+                    Text("Пригодится везде", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Скачайте заранее, пока есть быстрый интернет: офлайн-карты городов и языки переводчика.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
                     c.appGuide.always().forEach { AppRow(it) }
                 }
             }
@@ -84,73 +96,86 @@ fun AppsTab(c: AppContainer, flights: List<Flight>, stays: List<Stay>) {
 private fun Group(title: String, keys: List<String>, c: AppContainer) {
     val apps = keys.mapNotNull { c.appGuide.app(it) }
     if (apps.isEmpty()) return
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+    SectionLabel(title, Modifier.padding(top = 12.dp, bottom = 2.dp))
     apps.forEach { AppRow(it) }
 }
 
+/** Строка приложения: настоящая иконка (если установлено) или монограмма, без цветных плашек. */
 @Composable
 fun AppRow(app: AppInfo) {
     val context = LocalContext.current
     val installed = remember(app) { Taxi.isInstalled(context, app.androidPackage) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        val color = APP_COLORS[Math.floorMod(app.name.hashCode(), APP_COLORS.size)]
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(color), contentAlignment = Alignment.Center) {
-            Text(app.name.take(1), color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    val icon = remember(app, installed) {
+        if (!installed) null else runCatching {
+            context.packageManager.getApplicationIcon(app.androidPackage).toBitmap(96, 96).asImageBitmap()
+        }.getOrNull()
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            Image(icon, null, Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)))
+        } else {
+            Box(
+                Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(app.name.take(1), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(app.name, style = MaterialTheme.typography.titleSmall)
-            Text(app.description, style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { openUrl(context, app.appStoreUrl) }, contentPadding = PaddingValues(0.dp)) { Text("App Store (iPhone)") }
+            Text(app.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "App Store", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 2.dp).pressable { openUrl(context, app.appStoreUrl) },
+            )
         }
-        FilledTonalButton(onClick = { if (installed) Taxi.openApp(context, app) else Taxi.openStore(context, app) }) {
-            Text(if (installed) "Открыть" else "Google Play")
+        Spacer(Modifier.width(8.dp))
+        Pill(null, if (installed) "Открыть" else "Установить", { if (installed) Taxi.openApp(context, app) else Taxi.openStore(context, app) }, filled = installed)
+    }
+}
+
+@Composable
+private fun PaymentCard(c: AppContainer, countries: List<String>, abroad: Boolean) {
+    Panel {
+        SectionLabel("деньги")
+        Text("Как платить", style = MaterialTheme.typography.headlineSmall)
+        countries.filter { it != "RU" }.forEach { code ->
+            c.ref.country(code)?.let { info ->
+                if (info.money.isNotBlank()) {
+                    Text(info.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                    Text(info.money, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        if (abroad) {
+            Spacer(Modifier.height(8.dp))
+            Bullets(
+                listOf(
+                    "Российские Visa и Mastercard за рубежом не работают, «Мир» — лишь в нескольких странах. Основное — наличные USD/EUR новыми купюрами.",
+                    "Карты UnionPay российских банков принимают в Китае и частично в Азии и на Ближнем Востоке — проверьте заранее.",
+                    "Привяжите карты к такси и кошелькам дома и проверьте оплату: SMS-коды приходят на российский номер — держите его в роуминге.",
+                ),
+            )
         }
     }
 }
 
 @Composable
-private fun PaymentCard(c: AppContainer, countries: List<String>, noGms: Boolean, abroad: Boolean) {
-    Card(
-        Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (noGms && abroad) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("💳 Как платить", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            countries.filter { it != "RU" }.forEach { code ->
-                c.ref.country(code)?.let { info ->
-                    if (info.money.isNotBlank()) Text("${info.flag} ${info.name}: ${info.money}", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            if (abroad) {
-                Bullets(
-                    listOf(
-                        "Российские Visa и Mastercard за рубежом не работают, «Мир» — лишь в нескольких странах. Основной вариант — наличные USD/EUR новыми купюрами.",
-                        "Карты UnionPay российских банков принимают в Китае и частично в Азии и на Ближнем Востоке — проверьте заранее.",
-                        "Привяжите карты к приложениям такси и кошелькам ДОМА и проверьте оплату: SMS-коды приходят на российский номер — держите его в роуминге.",
-                    ),
-                )
-            }
-            if (noGms) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.width(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "На этом телефоне (${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }}) нет сервисов Google",
-                            style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-                        )
-                        Bullets(
-                            listOf(
-                                "Не работают Google Pay и Google Карты; Grab, Uber, Careem, Alipay и многие кошельки могут не запускаться или не привязывать карту.",
-                                "Возьмите пластиковую карту и наличные — не рассчитывайте только на телефон.",
-                                "Лучше взять второй телефон с сервисами Google: установите на него такси, карты и оплату и проверьте вход ещё дома.",
-                                "Без Google работают: Яндекс Go, Яндекс Карты, 2ГИС, Organic Maps, Яндекс Переводчик. Приложения ставьте из AppGallery или RuStore.",
-                            ),
-                        )
-                    }
-                }
-            }
-        }
+private fun NoGoogleCard() {
+    Panel(color = MaterialTheme.colorScheme.errorContainer) {
+        SectionLabel("важно")
+        Text(
+            "На ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} нет сервисов Google",
+            style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        Bullets(
+            listOf(
+                "Не работают Google Pay и Google Карты; Grab, Uber, Careem, Alipay и многие кошельки могут не запускаться или не привязывать карту.",
+                "Возьмите пластиковую карту и наличные — не рассчитывайте только на телефон.",
+                "Лучше второй телефон с сервисами Google: поставьте на него такси, карты и оплату и проверьте вход ещё дома.",
+                "Без Google работают Яндекс Go, Яндекс Карты, 2ГИС, Organic Maps, Яндекс Переводчик — ставьте их из AppGallery или RuStore.",
+            ),
+        )
     }
 }

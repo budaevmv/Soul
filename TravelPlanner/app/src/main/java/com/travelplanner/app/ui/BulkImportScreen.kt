@@ -3,6 +3,11 @@ package com.travelplanner.app.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +41,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -217,18 +221,19 @@ fun BulkImportScreen(
 
 @Composable
 private fun Summary(r: ImportReport, c: AppContainer, onOpenTrip: (Long) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp)).aurora().padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides Color.White) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(8.dp))
                 Text(
                     when {
                         r.added > 0 -> "Добавлено пунктов: ${r.added}"
                         r.duplicates > 0 -> "Всё из этих файлов уже есть в поездках"
                         else -> "Новых пунктов не найдено"
                     },
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineSmall, color = Color.White,
                 )
             }
             if (r.duplicates > 0) Text("Пропущено дубликатов: ${r.duplicates}", style = MaterialTheme.typography.bodyMedium)
@@ -240,7 +245,10 @@ private fun Summary(r: ImportReport, c: AppContainer, onOpenTrip: (Long) -> Unit
                 )
             }
             r.trips.forEach { (id, title) ->
-                Button(onClick = { onOpenTrip(id) }, modifier = Modifier.fillMaxWidth()) { Text("Открыть поездку «$title»") }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 6.dp).pressable { onOpenTrip(id) }.clip(RoundedCornerShape(50))
+                        .background(Color.White).padding(horizontal = 18.dp, vertical = 12.dp),
+                ) { Text("Открыть «$title»", style = MaterialTheme.typography.labelLarge, color = Color.Black) }
             }
         }
     }
@@ -248,9 +256,9 @@ private fun Summary(r: ImportReport, c: AppContainer, onOpenTrip: (Long) -> Unit
 
 @Composable
 private fun AttentionCard(a: AttentionItem, onFix: () -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Warning, null)
+    Panel(color = MaterialTheme.colorScheme.tertiaryContainer) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Info, null, tint = MaterialTheme.colorScheme.tertiary)
             Spacer(Modifier.width(8.dp))
             Column(Modifier.weight(1f)) {
                 Text(a.title, style = MaterialTheme.typography.titleSmall)
@@ -273,7 +281,7 @@ private fun FileRow(f: FileResult) {
         FileResult.Kind.ERROR -> Icons.Default.ErrorOutline to "Ошибка"
     }
     Row(verticalAlignment = Alignment.Top) {
-        Icon(icon, null, Modifier.size(22.dp), tint = MaterialTheme.colorScheme.primary)
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(10.dp))
         Column {
             Text("$label · ${f.name}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)

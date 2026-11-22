@@ -11,6 +11,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -55,7 +60,13 @@ class MainActivity : ComponentActivity() {
                         openTripId = null
                     }
                 }
-                NavHost(nav, startDestination = "trips") {
+                NavHost(
+                    nav, startDestination = "trips",
+                    enterTransition = { fadeIn(tween(320)) + slideInHorizontally(tween(320)) { it / 10 } },
+                    exitTransition = { fadeOut(tween(200)) },
+                    popEnterTransition = { fadeIn(tween(320)) },
+                    popExitTransition = { fadeOut(tween(220)) + slideOutHorizontally(tween(260)) { it / 10 } },
+                ) {
                     composable("trips") {
                         TripsScreen(c, onOpenTrip = { nav.navigate("trip/$it") }, onImport = { nav.navigate("import/0") })
                     }

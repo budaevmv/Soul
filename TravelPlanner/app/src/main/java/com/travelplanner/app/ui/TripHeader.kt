@@ -1,27 +1,31 @@
 package com.travelplanner.app.ui
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.Train
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -30,9 +34,30 @@ import com.travelplanner.app.AppContainer
 import com.travelplanner.app.data.Flight
 import com.travelplanner.app.data.Stay
 import com.travelplanner.app.ui.theme.TripColors
+import kotlin.math.cos
+import kotlin.math.sin
 
-/** Яркая шапка поездки: маршрут с флагами, даты, обратный отсчёт и что входит в поездку. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Фон с мягким «сиянием», которое медленно перетекает. */
+@Composable
+fun Modifier.aurora(alpha: Float = 0.55f): Modifier {
+    val t by rememberInfiniteTransition(label = "aurora").animateFloat(
+        0f, (2 * Math.PI).toFloat(), infiniteRepeatable(tween(16_000, easing = LinearEasing), RepeatMode.Restart), label = "t",
+    )
+    val base = Color(0xFF101016)
+    return this.background(base).drawBehind {
+        fun glow(color: Color, cx: Float, cy: Float, r: Float) = drawCircle(
+            Brush.radialGradient(listOf(color.copy(alpha = alpha), Color.Transparent), center = Offset(cx, cy), radius = r),
+            radius = r, center = Offset(cx, cy),
+        )
+        val w = size.width
+        val h = size.height
+        glow(TripColors.GlowA, w * (0.15f + 0.1f * cos(t)), h * (0.2f + 0.15f * sin(t)), w * 0.7f)
+        glow(TripColors.GlowB, w * (0.85f + 0.08f * sin(t)), h * (0.35f + 0.2f * cos(t)), w * 0.6f)
+        glow(TripColors.GlowC, w * (0.6f + 0.15f * cos(t + 1f)), h * (1.1f + 0.1f * sin(t)), w * 0.5f)
+    }
+}
+
+/** Шапка поездки: отсчёт, маршрут, даты и состав — без картинок, на «сиянии». */
 @Composable
 fun TripHeader(c: AppContainer, flights: List<Flight>, stays: List<Stay>, now: Long) {
     val moves = flights.sortedBy { it.departureMillis }
@@ -40,46 +65,38 @@ fun TripHeader(c: AppContainer, flights: List<Flight>, stays: List<Stay>, now: L
     val end = (moves.map { it.arrivalMillis ?: it.departureMillis } + stays.map { it.checkOutMillis }).maxOrNull()
     val zone = moves.firstOrNull()?.departureZone ?: stays.firstOrNull()?.zone ?: java.time.ZoneId.systemDefault().id
     val stops = c.itinerary.stops(flights, stays)
-    val route = stops.joinToString("  →  ") { s -> (s.country?.let { c.ref.country(it)?.flag } ?: "") + " " + s.city }.trim()
-    val status = when {
-        start == null -> "Добавьте билеты и брони"
-        now < start -> "До поездки ${Format.countdown(start, now).removePrefix("через ")}"
-        end != null && now <= end -> "Вы в поездке ✈"
-        else -> "Поездка завершена"
+    val (label, big) = when {
+        start == null -> "поездка" to "Пусто"
+        now < start -> "до поездки" to Format.countdown(start, now).removePrefix("через ")
+        end != null && now <= end -> "сейчас" to "В пути"
+        else -> "поездка" to "Завершена"
     }
-    Box(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp).clip(RoundedCornerShape(24.dp))
-            .background(Brush.linearGradient(listOf(TripColors.HeaderStart, TripColors.HeaderEnd))),
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 18.dp).clip(RoundedCornerShape(30.dp)).aurora().padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(
-            if (moves.any { !it.isTrain }) Icons.Default.Flight else Icons.Default.Train, null,
-            Modifier.size(150.dp).align(Alignment.TopEnd).offset(x = 30.dp, y = (-20).dp).rotate(35f),
-            tint = Color.White.copy(alpha = 0.13f),
-        )
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(status, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
-            if (route.isNotBlank()) Text(route, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            if (start != null && end != null) {
-                Text("${Format.shortDate(start, zone)} — ${Format.shortDate(end, zone)}", color = Color.White.copy(alpha = 0.9f))
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                val planes = moves.count { !it.isTrain }
-                val trains = moves.count { it.isTrain }
-                if (planes > 0) Pill("✈ $planes")
-                if (trains > 0) Pill("🚆 $trains")
-                if (stays.isNotEmpty()) Pill("🏨 ${stays.size}")
-                if (stops.isNotEmpty()) Pill("📍 ${stops.size} ${plural(stops.size, "город", "города", "городов")}")
-            }
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.7f))
+        AnimatedContent(
+            big,
+            transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
+            label = "countdown",
+        ) { value ->
+            Text(value, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Light, color = Color.White)
         }
+        if (stops.isNotEmpty()) {
+            Text(
+                stops.joinToString("  ·  ") { it.city }, style = MaterialTheme.typography.titleMedium,
+                color = Color.White, modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+        val facts = listOfNotNull(
+            if (start != null && end != null) "${Format.shortDate(start, zone)} — ${Format.shortDate(end, zone)}" else null,
+            moves.count { !it.isTrain }.takeIf { it > 0 }?.let { "$it ${plural(it, "перелёт", "перелёта", "перелётов")}" },
+            moves.count { it.isTrain }.takeIf { it > 0 }?.let { "$it ${plural(it, "поезд", "поезда", "поездов")}" },
+            stays.size.takeIf { it > 0 }?.let { "$it ${plural(it, "отель", "отеля", "отелей")}" },
+        )
+        Text(facts.joinToString("  ·  "), style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.75f))
     }
-}
-
-@Composable
-private fun Pill(text: String) {
-    Text(
-        text, color = Color.White, style = MaterialTheme.typography.labelLarge,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.18f)).padding(horizontal = 10.dp, vertical = 4.dp),
-    )
 }
 
 fun plural(n: Int, one: String, few: String, many: String): String {

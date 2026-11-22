@@ -1,6 +1,25 @@
 package com.travelplanner.app.ui
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.AcUnit
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Thunderstorm
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material.icons.outlined.WbCloudy
+import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -76,37 +95,36 @@ fun WeatherPackingTab(c: AppContainer, tripId: Long, flights: List<Flight>, stay
     }
     val prefs = remember { context.getSharedPreferences("checklist", android.content.Context.MODE_PRIVATE) }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp, 16.dp, 16.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Погода", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+    LazyColumn(contentPadding = PaddingValues(20.dp, 8.dp, 20.dp, 96.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        item { SectionLabel("погода в городах поездки", Modifier.padding(top = 6.dp)) }
         if (loading) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(Modifier.padding(4.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text("Загружаю прогноз…")
+                Panel {
+                    Text("Загружаю прогноз…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp), color = MaterialTheme.colorScheme.onSurface, trackColor = MaterialTheme.colorScheme.surfaceContainerHighest)
                 }
             }
         } else if (weather.isNullOrEmpty()) {
-            item { Text(if (stops.isEmpty()) "Добавьте билеты — появится погода в городах поездки." else "Не удалось загрузить погоду — нужен интернет. Список вещей ниже составлен без учёта погоды.") }
+            item {
+                Text(
+                    if (stops.isEmpty()) "Добавьте билеты — появится погода в городах поездки."
+                    else "Нет интернета — прогноз не загрузился. Список вещей ниже составлен без учёта погоды.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        items(weather.orEmpty()) { w -> WeatherCard(w) }
-        item { Text("Что взять с собой", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
-        items(sections) { section ->
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                Column(Modifier.padding(vertical = 8.dp)) {
-                    Text("${section.emoji}  ${section.title}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        itemsIndexed(weather.orEmpty()) { i, w -> Appear(i, w.city + w.from) { WeatherCard(w) } }
+        item { SectionLabel("что взять с собой", Modifier.padding(top = 16.dp)) }
+        itemsIndexed(sections) { i, section ->
+            Appear(i + 2, section.title) {
+                Panel {
+                    Text(section.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 4.dp))
                     section.items.forEach { item ->
                         val key = "$tripId:${item.hashCode()}"
                         var checked by remember(key) { mutableStateOf(prefs.getBoolean(key, false)) }
-                        Row(
-                            Modifier.fillMaxWidth().clickable {
-                                checked = !checked
-                                prefs.edit().putBoolean(key, checked).apply()
-                            }.padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(checked, { checked = it; prefs.edit().putBoolean(key, it).apply() })
-                            Text(item, style = MaterialTheme.typography.bodyMedium, color = if (checked) MaterialTheme.colorScheme.outline else Color.Unspecified)
+                        CheckRow(item, checked) {
+                            checked = !checked
+                            prefs.edit().putBoolean(key, checked).apply()
                         }
                     }
                 }
@@ -115,32 +133,63 @@ fun WeatherPackingTab(c: AppContainer, tripId: Long, flights: List<Flight>, stay
     }
 }
 
+/** Пункт списка: круглая галочка, отмеченное плавно приглушается и зачёркивается. */
+@Composable
+private fun CheckRow(text: String, checked: Boolean, onToggle: () -> Unit) {
+    val alpha by animateFloatAsState(if (checked) 0.4f else 1f, tween(250), label = "check")
+    Row(Modifier.fillMaxWidth().pressable(onToggle).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Crossfade(checked, label = "checkIcon") { on ->
+            Icon(
+                if (on) Icons.Filled.CheckCircle else Icons.Outlined.Circle, null, Modifier.size(22.dp),
+                tint = if (on) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline,
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.alpha(alpha),
+            textDecoration = if (checked) TextDecoration.LineThrough else null,
+        )
+    }
+}
+
+fun weatherIcon(code: Int?): ImageVector = when (code) {
+    0 -> Icons.Outlined.WbSunny
+    1, 2 -> Icons.Outlined.WbCloudy
+    3, 45, 48 -> Icons.Outlined.Cloud
+    in 51..67, in 80..82 -> Icons.Outlined.WaterDrop
+    in 71..77, 85, 86 -> Icons.Outlined.AcUnit
+    in 95..99 -> Icons.Outlined.Thunderstorm
+    else -> Icons.Outlined.Cloud
+}
+
 @Composable
 private fun WeatherCard(w: StopWeather) {
     val fmt = DateTimeFormatter.ofPattern("EE d", Locale.forLanguageTag("ru"))
-    val warm = w.maxT >= 22
-    val colors = if (warm) listOf(Color(0xFFF59E0B), Color(0xFFEF4444)) else if (w.maxT >= 10) listOf(Color(0xFF06B6D4), Color(0xFF3B82F6)) else listOf(Color(0xFF64748B), Color(0xFF1E3A8A))
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(colors)).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        val (emoji, _) = WeatherService.describe(w.days.groupingBy { it.code }.eachCount().maxByOrNull { it.value }?.key)
-        Text("$emoji  ${w.city}", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Text(
-            "${w.minT.roundToInt()}…${w.maxT.roundToInt()}°C" + (if (w.rainyDays > 0) " · дождь ${w.rainyDays} дн." else " · без осадков") +
-                if (w.forecast) "" else " · обычно в эти даты (прогноз появится за 2 недели)",
-            color = Color.White.copy(alpha = 0.92f),
-        )
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val main = w.days.groupingBy { it.code }.eachCount().maxByOrNull { it.value }?.key
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                SectionLabel(if (w.forecast) "прогноз" else "обычно в эти даты")
+                Text(w.city, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    WeatherService.describe(main).second.replaceFirstChar { it.uppercase() } +
+                        if (w.rainyDays > 0) " · дождь ${w.rainyDays} дн." else " · без осадков",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Icon(weatherIcon(main), null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.tertiary)
+                Text("${w.maxT.roundToInt()}°", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Light)
+                Text("ночью ${w.minT.roundToInt()}°", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
             w.days.take(16).forEach { d ->
-                Column(
-                    Modifier.clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.18f)).padding(horizontal = 10.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(LocalDate.parse(d.date).format(fmt), color = Color.White, style = MaterialTheme.typography.labelMedium)
-                    Text(WeatherService.describe(d.code).first, style = MaterialTheme.typography.titleMedium)
-                    Text("${d.tMax.roundToInt()}°", color = Color.White, fontWeight = FontWeight.Bold)
-                    Text("${d.tMin.roundToInt()}°", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelSmall)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(LocalDate.parse(d.date).format(fmt), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(weatherIcon(d.code), null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                    Text("${d.tMax.roundToInt()}°", style = MaterialTheme.typography.titleSmall)
+                    Text("${d.tMin.roundToInt()}°", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
