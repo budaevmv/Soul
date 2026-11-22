@@ -32,7 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -49,16 +53,31 @@ fun Modifier.pressable(onClick: (() -> Unit)?): Modifier {
     return this.graphicsLayer { scaleX = scale; scaleY = scale }.clickable(interactionSource = source, indication = null, onClick = onClick)
 }
 
-/** Карточка без рамок и теней: мягкая поверхность и крупные скругления. */
+/**
+ * Парящая карточка: без рамок, мягкая глубокая тень и едва заметный блик сверху,
+ * будто плашка приподнята над фоном.
+ */
 @Composable
 fun Panel(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     color: Color = MaterialTheme.colorScheme.surfaceContainer,
+    elevation: Dp = 14.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val shape = RoundedCornerShape(26.dp)
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.2f
+    val highlight = if (dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.7f)
     Column(
-        modifier.fillMaxWidth().pressable(onClick).clip(RoundedCornerShape(26.dp)).background(color).padding(18.dp),
+        modifier.fillMaxWidth().pressable(onClick)
+            .shadow(
+                elevation, shape,
+                ambientColor = Color.Black.copy(alpha = if (dark) 0.9f else 0.18f),
+                spotColor = Color.Black.copy(alpha = if (dark) 1f else 0.28f),
+            )
+            .background(color, shape)
+            .background(Brush.verticalGradient(listOf(highlight, Color.Transparent), endY = 220f), shape)
+            .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
     )

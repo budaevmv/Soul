@@ -61,6 +61,9 @@ class ScreenshotTest {
 
     private fun shot(name: String) {
         compose.waitForIdle()
+        // Дать доиграть анимациям появления (в тесте часы сами не идут)
+        repeat(20) { compose.mainClock.advanceTimeBy(100) }
+        compose.waitForIdle()
         compose.onRoot().captureRoboImage("build/outputs/roborazzi/$name.png")
     }
 

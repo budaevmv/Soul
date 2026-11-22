@@ -135,7 +135,7 @@ private fun style(e: TimelineEntry): Pair<Color, ImageVector> = when (e) {
 
 private fun isMajor(e: TimelineEntry) = e is TimelineEntry.FlightEntry || e is TimelineEntry.CheckIn
 
-/** Строка ленты: тонкая линия маршрута с иконкой без рамки, справа — содержимое. */
+/** Пункт ленты: отдельная парящая карточка (без боковой линии и иконок слева). */
 @Composable
 fun TimelineRow(
     entry: TimelineEntry,
@@ -147,28 +147,9 @@ fun TimelineRow(
     highlight: Boolean = false,
     now: Long = System.currentTimeMillis(),
 ) {
-    val (color, icon) = style(entry)
     val past = entry.at < now && !highlight
-    val major = isMajor(entry)
-    val lineColor = MaterialTheme.colorScheme.outline
-    val iconTop = if (major) 22.dp else 4.dp
-    Row(
-        Modifier.fillMaxWidth().alpha(if (past) 0.45f else 1f).drawBehind {
-            val x = 16.dp.toPx()
-            val gapTop = iconTop.toPx() - 6.dp.toPx()
-            val gapBottom = iconTop.toPx() + 26.dp.toPx()
-            val stroke = 1.dp.toPx()
-            if (!first) drawLine(lineColor, Offset(x, 0f), Offset(x, gapTop), strokeWidth = stroke)
-            if (!last) drawLine(lineColor, Offset(x, gapBottom), Offset(x, size.height), strokeWidth = stroke)
-        },
-    ) {
-        Box(Modifier.width(32.dp).padding(top = iconTop), contentAlignment = Alignment.TopCenter) {
-            Icon(icon, null, Modifier.size(20.dp), tint = color)
-        }
-        Spacer(Modifier.width(10.dp))
-        Box(Modifier.weight(1f).padding(bottom = if (major) 14.dp else 18.dp)) {
-            TimelineCard(entry, c, onEditFlight, onEditStay, highlight, now, color)
-        }
+    Box(Modifier.fillMaxWidth().alpha(if (past) 0.55f else 1f).padding(bottom = 14.dp)) {
+        TimelineCard(entry, c, onEditFlight, onEditStay, highlight, now)
     }
 }
 
@@ -189,14 +170,14 @@ fun TimelineCard(
     fun taxi(country: String?, from: String?, to: String?) = scope.launch { Taxi.order(context, c, country, from, to) }
     fun transit(country: String?, from: String?, to: String) = scope.launch { Taxi.transit(context, c, country, from, to) }
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    val panelColor = if (highlight) accent.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainer
+    val panelColor = if (highlight) androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.surfaceContainer, accent, 0.12f) else MaterialTheme.colorScheme.surfaceContainer
 
     when (entry) {
         is TimelineEntry.GoToAirport -> Minor {
             val f = entry.flight
             val country = c.itinerary.departureCountry(f)
             val target = f.departurePlaceQuery(ref)
-            MinorTitle(Format.time(entry.at, entry.zone), if (f.isTrain) "Выезд на вокзал" else "Выезд в аэропорт", accent, highlight)
+            MinorTitle(Format.time(entry.at, entry.zone), if (f.isTrain) "Выезд на вокзал" else "Выезд в аэропорт", accent, highlight, Icons.Outlined.DirectionsCar)
             Text(
                 if (f.isTrain) f.fromName
                 else (ref.airport(f.fromIata)?.title ?: f.fromIata) + (f.departureTerminal.takeIf { it.isNotBlank() }?.let { ", терминал $it" } ?: ""),
@@ -217,6 +198,7 @@ fun TimelineCard(
             val f = entry.flight
             val airline = if (f.isTrain) null else ref.airline(f.airlineCode)
             Panel(onClick = { onEditFlight(f) }, color = panelColor) {
+                TypeLabel(if (f.isTrain) Icons.Outlined.Train else Icons.Outlined.Flight, if (f.isTrain) "поезд" else "перелёт", accent)
                 BoardingPass(f, ref, accent)
                 Text(
                     listOfNotNull(
@@ -252,7 +234,7 @@ fun TimelineCard(
         }
         is TimelineEntry.Layover -> Minor {
             val f = entry.flight
-            MinorTitle(Format.time(entry.at, entry.zone), "Пересадка · ${ref.airport(f.fromIata)?.city ?: f.fromIata}", accent, highlight)
+            MinorTitle(Format.time(entry.at, entry.zone), "Пересадка · ${ref.airport(f.fromIata)?.city ?: f.fromIata}", accent, highlight, Icons.Outlined.SyncAlt)
             Text(
                 "${Format.duration(f.departureMillis - entry.prev.arrivalMillis!!)} до вылета ${f.title()}" +
                     (f.departureTerminal.takeIf { t -> t.isNotBlank() }?.let { t -> " · терминал $t" } ?: "") +
@@ -264,7 +246,7 @@ fun TimelineCard(
             val s = entry.stay
             val f = entry.flight
             val country = c.itinerary.arrivalCountry(f)
-            MinorTitle(Format.time(entry.at, entry.zone), "В «${s.name}»", accent, highlight)
+            MinorTitle(Format.time(entry.at, entry.zone), "В «${s.name}»", accent, highlight, Icons.Outlined.LocalTaxi)
             Text(
                 listOfNotNull(
                     s.address.takeIf { it.isNotBlank() },
@@ -281,11 +263,8 @@ fun TimelineCard(
         is TimelineEntry.CheckIn -> {
             val s = entry.stay
             Panel(onClick = { onEditStay(s) }, color = panelColor) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(Format.time(entry.at, s.zone), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Light, color = accent)
-                    Spacer(Modifier.width(10.dp))
-                    SectionLabel("заселение", Modifier.padding(bottom = 4.dp))
-                }
+                TypeLabel(Icons.Outlined.Hotel, "заселение", accent)
+                Text(Format.time(entry.at, s.zone), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Light)
                 Text(s.name, style = MaterialTheme.typography.titleLarge)
                 if (s.address.isNotBlank()) Text(s.address, style = MaterialTheme.typography.bodyMedium, color = muted)
                 Text(
@@ -304,7 +283,7 @@ fun TimelineCard(
         }
         is TimelineEntry.CheckOut -> Minor(onClick = { onEditStay(entry.stay) }) {
             val s = entry.stay
-            MinorTitle(Format.time(entry.at, s.zone), "Выезд из «${s.name}»", accent, highlight)
+            MinorTitle(Format.time(entry.at, s.zone), "Выезд из «${s.name}»", accent, highlight, Icons.AutoMirrored.Outlined.Logout)
             Text(
                 if (entry.at < s.checkOutMillis) "Расчётный час ${Format.time(s.checkOutMillis, s.zone)}, но выехать нужно раньше — к отправлению."
                 else "Освободить номер до ${Format.time(s.checkOutMillis, s.zone)}",
@@ -324,14 +303,16 @@ private fun BoardingPass(f: Flight, ref: ReferenceData, accent: Color) {
             Text(if (f.isTrain) f.fromName else f.fromIata, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
             Text(f.fromCity(ref), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Box(Modifier.weight(0.7f).height(24.dp), contentAlignment = Alignment.Center) {
-            val line = MaterialTheme.colorScheme.outline
-            Box(Modifier.fillMaxWidth().height(1.dp).background(line))
+        // Линия маршрута с разрывом под иконкой — без подложки, на любом фоне карточки
+        Row(Modifier.weight(0.7f).height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+            val line = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.18f)
+            Box(Modifier.weight(1f).height(1.dp).background(line))
             Icon(
                 if (f.isTrain) Icons.Outlined.Train else Icons.Outlined.Flight, null,
-                Modifier.size(18.dp).background(MaterialTheme.colorScheme.surfaceContainer).padding(horizontal = 2.dp).rotate(if (f.isTrain) 0f else 90f),
+                Modifier.padding(horizontal = 6.dp).size(18.dp).rotate(if (f.isTrain) 0f else 90f),
                 tint = accent,
             )
+            Box(Modifier.weight(1f).height(1.dp).background(line))
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             Text(arrival?.let { Format.time(it, f.arrivalZone) } ?: "—", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Light)
@@ -346,15 +327,29 @@ private fun BoardingPass(f: Flight, ref: ReferenceData, accent: Color) {
 
 @Composable
 private fun Minor(onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth().pressable(onClick), verticalArrangement = Arrangement.spacedBy(4.dp)) { content() }
+    Panel(onClick = onClick, elevation = 8.dp) { content() }
 }
 
 @Composable
-private fun MinorTitle(time: String, title: String, accent: Color, highlight: Boolean) {
+private fun MinorTitle(time: String, title: String, accent: Color, highlight: Boolean, icon: ImageVector? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
+        if (icon != null) {
+            Icon(icon, null, Modifier.size(18.dp), tint = accent)
+            Spacer(Modifier.width(10.dp))
+        }
         Text(time, style = MaterialTheme.typography.titleMedium, color = if (highlight) accent else MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.width(10.dp))
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Маленькая подпись типа с иконкой в углу карточки. */
+@Composable
+private fun TypeLabel(icon: ImageVector, text: String, accent: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(16.dp), tint = accent)
+        Spacer(Modifier.width(8.dp))
+        Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = accent)
     }
 }
 

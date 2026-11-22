@@ -32,6 +32,20 @@ import androidx.compose.material.icons.outlined.Flight
 import androidx.compose.material.icons.outlined.Hotel
 import androidx.compose.material.icons.outlined.Train
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.flow.drop
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -227,48 +241,125 @@ private fun PlanTab(
     onEditStay: (Long) -> Unit,
 ) {
     val entries = remember(flights, stays) { Timeline.build(flights, stays, c.ref) }
-    val now = System.currentTimeMillis()
+    // Живое «сейчас»: отсчёт «через N мин» обновляется сам
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            now = System.currentTimeMillis()
+        }
+    }
     val next = Timeline.next(entries, now)
+
+    // Строки ленты: шапка, подписи дней и пункты — чтобы знать индексы для «барабана»
+    val rows = remember(entries, now / 60_000) {
+        buildList<PlanRow> {
+            add(PlanRow.Header)
+            var lastDay = ""
+            entries.forEachIndexed { i, e ->
+                val day = Format.day(e.at, e.zone)
+                if (day != lastDay) {
+                    lastDay = day
+                    add(PlanRow.Day(day, e.at < now))
+                }
+                add(PlanRow.Item(e, i))
+            }
+        }
+    }
+    val nextRow = rows.indexOfFirst { it is PlanRow.Item && it.entry === next }.let { i ->
+        if (i > 0 && rows[i - 1] is PlanRow.Day) i - 1 else i
+    }
+    // Открываем план на ближайшем событии: прошедшие уже «укатились» в барабан сверху
+    val state = rememberLazyListState()
+    // Данные приходят из базы асинхронно — перематываем, когда план построен (один раз)
+    var scrolled by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(nextRow) {
+        if (!scrolled && nextRow > 2) {
+            state.scrollToItem(nextRow - 2)
+            scrolled = true
+        }
+    }
+    val haptic = LocalHapticFeedback.current
+    LaunchedEffect(state, rows) {
+        snapshotFlow { state.firstVisibleItemIndex }.drop(1).collect { i ->
+            val row = rows.getOrNull(i)
+            if (row is PlanRow.Item && row.entry.at < now || row is PlanRow.Day && row.past) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        }
+    }
+
     LazyColumn(
-        contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 96.dp),
+        state = state,
+        contentPadding = PaddingValues(18.dp, 12.dp, 18.dp, 110.dp),
+        flingBehavior = rememberSnapFlingBehavior(lazyListState = state, snapPosition = SnapPosition.Start),
     ) {
-        item { Appear(0, "header") { TripHeader(c, flights, stays, now) } }
+        itemsIndexed(rows, key = { i, r -> if (r is PlanRow.Item) "e${r.index}" else "r$i" }) { i, row ->
+            when (row) {
+                PlanRow.Header -> Box(Modifier.drum(state, i)) { Appear(0, "header") { TripHeader(c, flights, stays, now) } }
+                is PlanRow.Day -> Box(Modifier.drum(state, i, row.past)) {
+                    SectionLabel(row.label, Modifier.padding(start = 6.dp, top = 18.dp, bottom = 12.dp))
+                }
+                is PlanRow.Item -> {
+                    val e = row.entry
+                    Box(Modifier.drum(state, i, e.at < now)) {
+                        Appear(row.index.coerceAtMost(8), "entry-${row.index}") {
+                            Column {
+                                if (e === next) {
+                                    Text(
+                                        "Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp),
+                                    )
+                                }
+                                TimelineRow(
+                                    e, c, { onEditFlight(it.id) }, { onEditStay(it.id) },
+                                    first = row.index == 0, last = row.index == entries.lastIndex, highlight = e === next, now = now,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (entries.isEmpty()) {
             item {
                 Column(Modifier.padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("План пока пуст", style = MaterialTheme.typography.titleLarge)
-                    Text("Нажмите «Загрузить документы» и выберите билеты и брони — план соберётся сам.")
+                    Text("Нажмите «Документы» и выберите билеты и брони — план соберётся сам.")
                 }
             }
         }
-        var lastDay = ""
-        entries.forEachIndexed { index, e ->
-            val day = Format.day(e.at, e.zone)
-            if (day != lastDay) {
-                lastDay = day
-                item(key = "day-$index") {
-                    Appear(index, "day-$index") {
-                        SectionLabel(day, Modifier.padding(start = 42.dp, top = 14.dp, bottom = 12.dp))
-                    }
-                }
-            }
-            item(key = "entry-$index") {
-                Appear(index, "entry-$index") {
-                    Column {
-                        if (e === next) {
-                            Text(
-                                "Следующее · ${Format.countdown(e.at, now)}", style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(start = 42.dp, bottom = 6.dp),
-                            )
-                        }
-                        TimelineRow(
-                            e, c, { onEditFlight(it.id) }, { onEditStay(it.id) },
-                            first = index == 0, last = index == entries.lastIndex, highlight = e === next, now = now,
-                        )
-                    }
-                }
-            }
-        }
+    }
+}
+
+private sealed interface PlanRow {
+    data object Header : PlanRow
+    data class Day(val label: String, val past: Boolean) : PlanRow
+    data class Item(val entry: TimelineEntry, val index: Int) : PlanRow
+}
+
+/**
+ * Эффект барабана, как в выборе времени на iPhone: у верхнего края пункт поворачивается
+ * от зрителя, уменьшается и гаснет. Применяется к прошедшим событиям (и шапке).
+ */
+@Composable
+private fun Modifier.drum(state: LazyListState, index: Int, enabled: Boolean = true): Modifier {
+    if (!enabled) return this
+    val density = LocalDensity.current.density
+    return this.graphicsLayer {
+        val layout = state.layoutInfo
+        val info = layout.visibleItemsInfo.firstOrNull { it.index == index } ?: return@graphicsLayer
+        val zone = layout.viewportSize.height * 0.34f
+        if (zone <= 0f) return@graphicsLayer
+        val center = info.offset + info.size / 2f
+        val d = ((zone - center) / zone).coerceIn(0f, 1f)
+        rotationX = 68f * d
+        val scale = 1f - 0.16f * d
+        scaleX = scale
+        scaleY = scale
+        alpha = 1f - 0.8f * d
+        transformOrigin = TransformOrigin(0.5f, 1f)
+        cameraDistance = 10f * density
     }
 }
 
